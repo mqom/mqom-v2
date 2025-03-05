@@ -20,6 +20,7 @@ CFLAGS := $(patsubst -std=gnu99, -std=gnu++2a, $(CFLAGS))
 CFLAGS += -Wno-deprecated
 endif
 
+CFLAGS += -DNO_MISALIGNED_ACCESSES
 
 COMMON_SOURCES=KeccakHash.c KeccakSponge.c KeccakSpongetimes4.c KeccakHashtimes4.c 
 COMMON_OBJECTS=KeccakHash.o KeccakSponge.o KeccakSpongetimes4.o KeccakHashtimes4.o 

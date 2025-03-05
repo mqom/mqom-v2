@@ -5,6 +5,7 @@
 #include "timing.h"
 #include "utils.h"
 #include "api.h"
+#include "benchmark.h"
 
 #define B_KEY_GENERATION 0
 #define B_SIGN_ALGO 1
@@ -16,6 +17,16 @@ int randombytes(unsigned char* x, unsigned long long xlen) {
         x[j] = (uint8_t) rand();
     return 0;
 }
+
+#ifdef BENCHMARK
+btimer_t timers[NUMBER_OF_BENCHES];
+
+#ifdef BENCHMARK_CYCLES
+#define display_timer(label,num) printf("   - " label ": %f ms (%f cycles)\n", btimer_get(&timers[num]), btimer_get_cycles(&timers[num]))
+#else
+#define display_timer(label,num) printf("   - " label ": %f ms\n", btimer_get(&timers[num]))
+#endif
+#endif
 
 int main(int argc, char *argv[]) {
     srand((unsigned int) time(NULL));
@@ -36,6 +47,10 @@ int main(int argc, char *argv[]) {
         btimer_init(&timers_algos[j]);
         timer_pow2[j] = 0;
     }
+    #ifdef BENCHMARK
+    for(int num=0; num<NUMBER_OF_BENCHES; num++)
+        btimer_init(&timers[num]);
+    #endif
     double mean_of_sig_size = 0;
     double sig_size_pow2 = 0;
 
@@ -43,6 +58,11 @@ int main(int argc, char *argv[]) {
     int score = 0;
     int ret;
     for(int i=0; i<nb_tests; i++) {
+        #ifdef BENCHMARK
+        for(int num=0; num<NUMBER_OF_BENCHES; num++)
+            btimer_count(&timers[num]);
+        #endif
+
         // Generate the keys
         uint8_t pk[CRYPTO_PUBLICKEYBYTES];
         uint8_t sk[CRYPTO_SECRETKEYBYTES];
@@ -143,6 +163,34 @@ int main(int argc, char *argv[]) {
     printf(" - Signature size (MAX): %ld B\n", CRYPTO_BYTES);
     printf(" - Signature size: %.0f B (std=%.0f)\n", mean_of_sig_size, std_sig_size);
     printf("\n");
+
+    #ifdef BENCHMARK
+    printf("\n===== DETAILED BENCHMARK =====\n");
+    printf(" - Signing\n");
+    display_timer("ExpandMQ", BS_EXPAND_MQ);
+    display_timer("BLC.Commit", BS_BLC_COMMIT);
+    display_timer("[BLC.Commit] Expand Trees", BS_BLC_EXPAND_TREE);
+    display_timer("[BLC.Commit] KeySch. Commit", BS_BLC_KEYSCH_COMMIT);
+    display_timer("[BLC.Commit] Seed Commit", BS_BLC_SEED_COMMIT);
+    display_timer("[BLC.Commit] PRG", BS_BLC_PRG);
+    display_timer("[BLC.Commit] XOF", BS_BLC_XOF);
+    display_timer("[BLC.Commit] Arithm", BS_BLC_ARITH);
+    display_timer("[BLC.Commit] Global XOF", BS_BLC_GLOBAL_XOF);
+    display_timer("PIOP.Compute", BS_PIOP_COMPUTE);
+    display_timer("[PIOP.Compute] Expand Batching Mat", BS_PIOP_EXPAND_BATCHING_MAT);
+    display_timer("[PIOP.Compute] Matrix Mul Ext", BS_PIOP_MAT_MUL_EXT);
+    display_timer("[PIOP.Compute] Compute t1", BS_PIOP_COMPUTE_T1);
+    display_timer("[PIOP.Compute] Compute P_zi", BS_PIOP_COMPUTE_PZI);
+    display_timer("[PIOP.Compute] Batch", BS_PIOP_BATCH);
+    display_timer("[PIOP.Compute] Add Masks", BS_PIOP_ADD_MASKS);
+    display_timer("Sample Challenge", BS_SAMPLE_CHALLENGE);
+    display_timer("BLC.Open", BS_BLC_OPEN);
+    printf(" - Others\n");
+    display_timer("Pin A", B_PIN_A);
+    display_timer("Pin B", B_PIN_B);
+    display_timer("Pin C", B_PIN_C);
+    display_timer("Pin D", B_PIN_D);
+    #endif
 
     return 0;
 }

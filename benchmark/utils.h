@@ -32,8 +32,8 @@ static inline void print_configuration(void) {
 #ifdef __AVX2__
     printf(" AVX2");
 #endif
-#if defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VPOPCNTDQ__)
-    printf(" AVX512BW AVX512F AVX512VPOPCNTDQ");
+#if defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VL__) && defined(__AVX512VPOPCNTDQ__)
+    printf(" AVX512BW AVX512F AVX512VL AVX512VPOPCNTDQ");
 #endif
 #ifdef __GFNI__
     printf(" GFNI");

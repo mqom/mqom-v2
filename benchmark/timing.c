@@ -1,13 +1,12 @@
 #include "timing.h"
-#ifdef BENCHMARK_CYCLES
-#include <x86intrin.h>
-#endif
 
 void btimer_init(btimer_t* timer) {
     if(timer != NULL) {
         timer->counter = 0;
         timer->nb_milliseconds = 0.;
         timer->nb_cycles = 0;
+	timer->start.tv_sec = timer->start.tv_usec = 0;
+	timer->stop.tv_sec = timer->stop.tv_usec = 0;
     }
 }
 void btimer_count(btimer_t *timer) {
@@ -16,9 +15,24 @@ void btimer_count(btimer_t *timer) {
 }
 void btimer_start(btimer_t *timer) {
     if(timer != NULL) {
+#ifdef BENCHMARK_TIME
+#if defined(CLOCK_MONOTONIC_COARSE) && !defined(BENCHMARK_USE_GETTIMEOFDAY)
+        /* NOTE: when available, we use CLOCK_MONOTONIC_COARSE
+         * as it does not require a costly system call */
+	struct timespec t;
+        clock_gettime(CLOCK_MONOTONIC_COARSE, &t);
+	timer->start.tv_sec  = t.tv_sec;
+	timer->start.tv_usec = (double)t.tv_nsec * 0.001;
+#else
+        /* NOTE: this requires a syscall, so this can
+         * incur a perfomance hit and perturb the measurements */
         gettimeofday(&timer->start, NULL);
+#endif
+#else
+       (void)timer;
+#endif /* BENCHMARK_TIME */
       #ifdef BENCHMARK_CYCLES
-        timer->cstart = __rdtscp(&timer->garbage);
+        timer->cstart = platform_get_cycles();
       #endif
     }
 }
@@ -30,12 +44,25 @@ uint64_t btimer_diff_cycles(btimer_t *timer) {
 }
 void btimer_end(btimer_t *timer) {
     if(timer != NULL) {
+#ifdef BENCHMARK_TIME
+#if defined(CLOCK_MONOTONIC_COARSE) && !defined(BENCHMARK_USE_GETTIMEOFDAY)
+        /* NOTE: when available, we use CLOCK_MONOTONIC_COARSE
+         * as it does not require a costly system call */
+	struct timespec t;
+        clock_gettime(CLOCK_MONOTONIC_COARSE, &t);
+	timer->stop.tv_sec  = t.tv_sec;
+	timer->stop.tv_usec = (double)t.tv_nsec * 0.001;
+#else
+        /* NOTE: this requires a syscall, so this can
+         * incur a perfomance hit and perturb the measurements */
         gettimeofday(&timer->stop, NULL);
-      #ifdef BENCHMARK_CYCLES
-        timer->cstop = __rdtscp(&timer->garbage);
-      #endif
+#endif
         timer->nb_milliseconds += btimer_diff(timer);
+#else
+       (void)timer;
+#endif /* BENCHMARK_TIME */
       #ifdef BENCHMARK_CYCLES
+        timer->cstop = platform_get_cycles();
         timer->nb_cycles += btimer_diff_cycles(timer);
       #endif
     }

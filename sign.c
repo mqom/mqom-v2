@@ -11,6 +11,7 @@
 #include "expand_mq.h"
 #include "blc.h"
 #include "piop.h"
+#include "benchmark.h"
 
 extern int randombytes(unsigned char* x, unsigned long long xlen);
 
@@ -73,7 +74,9 @@ int Sign(const uint8_t sk[MQOM2_SK_SIZE], const uint8_t *msg, unsigned long long
 	field_base_parse(&sk[(2 * MQOM2_PARAM_SEED_SIZE) + BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_M)], MQOM2_PARAM_MQ_N, x);
 
 	/* Expand the equations */
+    __BENCHMARK_START__(BS_EXPAND_MQ);
 	ret = ExpandEquations(mseed_eq, A, b); ERR(ret, err);
+    __BENCHMARK_STOP__(BS_EXPAND_MQ);
 
     /* Hash message */
 	ret = xof_init(&xof_ctx); ERR(ret, err);
@@ -95,12 +98,16 @@ int Sign(const uint8_t sk[MQOM2_SK_SIZE], const uint8_t *msg, unsigned long long
     field_ext_elt x0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)];
     field_ext_elt u0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
     field_ext_elt u1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
+    __BENCHMARK_START__(BS_BLC_COMMIT);
     BLC_Commit(mseed, salt, x, com1, &key, x0, u0, u1);
+    __BENCHMARK_STOP__(BS_BLC_COMMIT);
     
     /* Compute P_alpha */
     field_ext_elt alpha0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
     field_ext_elt alpha1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
+    __BENCHMARK_START__(BS_PIOP_COMPUTE);
     ComputePAlpha(com1, x0, u0, u1, x, A, b, alpha0, alpha1);
+    __BENCHMARK_STOP__(BS_PIOP_COMPUTE);
 
     /* Hash P_alpha and compute Fiat-Shamir hash */
 	ret = xof_init(&xof_ctx); ERR(ret, err);
@@ -127,10 +134,14 @@ int Sign(const uint8_t sk[MQOM2_SK_SIZE], const uint8_t *msg, unsigned long long
 
     /* Sample Challenge */
     uint16_t i_star[MQOM2_PARAM_TAU];
+    __BENCHMARK_START__(BS_SAMPLE_CHALLENGE);
     ret = SampleChallenge(hash, i_star, nonce);
+    __BENCHMARK_STOP__(BS_SAMPLE_CHALLENGE);
 
     /* Open Line Evaluation */
+    __BENCHMARK_START__(BS_BLC_OPEN);
     BLC_Open(&key, i_star, opening);
+    __BENCHMARK_STOP__(BS_BLC_OPEN);
 
     ret = 0;
 err:

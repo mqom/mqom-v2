@@ -193,7 +193,7 @@ static inline void _field_ext_basis_dummy(void)
 
 /* This file adapts the fields definition depending on the compilation */
 #if !defined(FIELDS_REF) && !defined(FIELDS_AVX2) && !defined(FIELDS_GFNI)
-    #if defined(__GFNI__) && defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VPOPCNTDQ__)
+    #if defined(__GFNI__) && defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VL__) && defined(__AVX512VPOPCNTDQ__)
         #define FIELDS_GFNI
     #else
         #ifdef __AVX2__

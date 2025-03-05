@@ -2,8 +2,24 @@
 #if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
 #include "xof.h"
 #endif
+#include "piop_cache.h"
+#include "benchmark.h"
 
-int ComputePz(const field_ext_elt x0_e[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt A[MQOM2_PARAM_MQ_M][MQOM2_PARAM_MQ_N][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt b[MQOM2_PARAM_MQ_M][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], field_ext_elt z0[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)], field_ext_elt z1[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)]) {
+static inline void compute_t1(const field_base_elt A[MQOM2_PARAM_MQ_M][MQOM2_PARAM_MQ_N][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt b[MQOM2_PARAM_MQ_M][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], field_base_elt t1[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], uint32_t i, piop_cache *cache)
+{	
+	if(is_entry_active(cache, i)){
+		get_entry(cache, i, t1);
+	}
+	else{
+		field_base_mat_mult((field_base_elt*)A[i], x, t1, MQOM2_PARAM_MQ_N, TRI_INF);
+		field_base_vect_add(t1, b[i], t1, MQOM2_PARAM_MQ_N);
+		set_entry(cache, i, t1);
+	}
+
+	return;
+}
+
+int ComputePz(const field_ext_elt x0_e[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt A[MQOM2_PARAM_MQ_M][MQOM2_PARAM_MQ_N][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt b[MQOM2_PARAM_MQ_M][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], field_ext_elt z0[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)], field_ext_elt z1[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)], piop_cache *cache) {
 	int ret = -1;
     uint32_t i;
 
@@ -13,15 +29,20 @@ int ComputePz(const field_ext_elt x0_e[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], con
 
 	for(i = 0; i < MQOM2_PARAM_MQ_M; i++) {
         /* Compute P_t(X) = t_0 + t_1 X = A_i P_x(X) + b_i X */
+        __BENCHMARK_START__(BS_PIOP_MAT_MUL_EXT);
         field_base_ext_mat_mult((field_base_elt*)A[i], x0_e, t0, MQOM2_PARAM_MQ_N, TRI_INF);
-        field_base_mat_mult((field_base_elt*)A[i], x, t1, MQOM2_PARAM_MQ_N, TRI_INF);
-        field_base_vect_add(t1, b[i], t1, MQOM2_PARAM_MQ_N);
+        __BENCHMARK_STOP__(BS_PIOP_MAT_MUL_EXT);
+        __BENCHMARK_START__(BS_PIOP_COMPUTE_T1);
+	compute_t1(A, x, b, t1, i, cache);
+        __BENCHMARK_STOP__(BS_PIOP_COMPUTE_T1);
 
         /* Compute P_{z,i}(X) = z_{0,i} + z_{1,i} X = P_t(X)^T P_x(X) - y_i X^2 */
+        __BENCHMARK_START__(BS_PIOP_COMPUTE_PZI);
         z_0i = field_ext_vect_mult(t0, x0_e, MQOM2_PARAM_MQ_N);
         z_1i = field_ext_base_vect_mult(t0, x, MQOM2_PARAM_MQ_N) ^ field_base_ext_vect_mult(t1, x0_e, MQOM2_PARAM_MQ_N);
         field_ext_vect_pack(z_0i, z0, i);
         field_ext_vect_pack(z_1i, z1, i);
+        __BENCHMARK_STOP__(BS_PIOP_COMPUTE_PZI);
     }
 
 	ret = 0;
@@ -71,6 +92,10 @@ int ComputePAlpha(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const field_ext_el
 	int ret = -1;
     uint32_t e;
 
+    /* Initialize the PIOP cache for t1 */
+    piop_cache *t1_cache = init_piop_cache(MQOM2_PARAM_MQ_M);
+
+    __BENCHMARK_START__(BS_PIOP_EXPAND_BATCHING_MAT);
 #if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
     uint32_t i;
 	xof_context xof_ctx;
@@ -87,10 +112,12 @@ int ComputePAlpha(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const field_ext_el
 #else
     (void) com;
 #endif
+    __BENCHMARK_STOP__(BS_PIOP_EXPAND_BATCHING_MAT);
 
     field_ext_elt z0[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)], z1[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)];
 	for(e = 0; e < MQOM2_PARAM_TAU; e++) {
-        ret = ComputePz(x0[e], x, A, b, z0, z1); ERR(ret, err);
+        ret = ComputePz(x0[e], x, A, b, z0, z1, t1_cache); ERR(ret, err);
+        __BENCHMARK_START__(BS_PIOP_BATCH);
 #if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
         phi(z0, compressed_z);
         for(i=0; i<MQOM2_PARAM_ETA; i++) {
@@ -110,12 +137,16 @@ int ComputePAlpha(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const field_ext_el
         phi(z0, alpha0[e]);
         phi(z1, alpha1[e]);
 #endif
+        __BENCHMARK_STOP__(BS_PIOP_BATCH);
+        __BENCHMARK_START__(BS_PIOP_ADD_MASKS);
         field_ext_vect_add(alpha0[e], u0[e], alpha0[e], MQOM2_PARAM_ETA);
         field_ext_vect_add(alpha1[e], u1[e], alpha1[e], MQOM2_PARAM_ETA);
+        __BENCHMARK_STOP__(BS_PIOP_ADD_MASKS);
     }
 
 	ret = 0;
 err:
+	destroy_piop_cache(t1_cache);
 	return ret;
 }
 

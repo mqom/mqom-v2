@@ -1,5 +1,6 @@
 #include "blc.h"
 #include "ggm_tree.h"
+#include "benchmark.h"
 
 /* SeedCommit variants
  * NOTE: we factorize the key schedule, the tweaked salt is inside the encryption context
@@ -35,6 +36,7 @@ static inline void SeedCommit_x2(enc_ctx *ctx1, enc_ctx *ctx2, const uint8_t see
     return;
 }
 
+#define PRG_BLC_SIZE (BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N) + BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_ETA) - MQOM2_PARAM_SEED_SIZE)
 
 int BLC_Commit(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], uint8_t com1[MQOM2_PARAM_DIGEST_SIZE], blc_key_t* key, field_ext_elt x0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], field_ext_elt u0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)], field_ext_elt u1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)])
 {
@@ -49,9 +51,11 @@ int BLC_Commit(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t salt[MQ
     uint8_t _x[BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)];
     /* Tree rseed PRG salt, set to 0 */
     uint8_t tree_prg_salt[MQOM2_PARAM_SALT_SIZE] = { 0 };
+    /* PRG cache */
+    prg_key_sched_cache *prg_cache = NULL;
 
     /* Compute the rseed table */
-    ret = PRG(tree_prg_salt, 0, mseed, MQOM2_PARAM_TAU * MQOM2_PARAM_SEED_SIZE, (uint8_t*)rseed); ERR(ret, err);
+    ret = PRG(tree_prg_salt, 0, mseed, MQOM2_PARAM_TAU * MQOM2_PARAM_SEED_SIZE, (uint8_t*)rseed, NULL); ERR(ret, err);
     /* Compute delta */
     field_base_serialize(x, MQOM2_PARAM_MQ_N, _x); 
     memcpy(delta, _x, MQOM2_PARAM_SEED_SIZE);
@@ -66,12 +70,19 @@ int BLC_Commit(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t salt[MQ
     field_ext_elt tmp_eta[FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
     field_base_elt acc_x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)];
     for(e = 0; e < MQOM2_PARAM_TAU; e++) {
-        ret = GGMTree_Expand(salt, rseed[e], delta, e, key->node[e], lseed); ERR(ret, err);
+        /* Initialize the PRG cache when used */
+        prg_cache = init_prg_cache(PRG_BLC_SIZE);
 
+        __BENCHMARK_START__(BS_BLC_EXPAND_TREE);
+        ret = GGMTree_Expand(salt, rseed[e], delta, e, key->node[e], lseed); ERR(ret, err);
+        __BENCHMARK_STOP__(BS_BLC_EXPAND_TREE);
+
+        __BENCHMARK_START__(BS_BLC_KEYSCH_COMMIT);
         TweakSalt(salt, tweaked_salt, 0, e, 0);
         ret = enc_key_sched(&ctx_seed_commit1, tweaked_salt); ERR(ret, err);
         tweaked_salt[0] ^= 0x01;
         ret = enc_key_sched(&ctx_seed_commit2, tweaked_salt); ERR(ret, err);
+        __BENCHMARK_STOP__(BS_BLC_KEYSCH_COMMIT);
 
         ret = xof_init(&xof_ctx); ERR(ret, err);
 	    ret = xof_update(&xof_ctx, (const uint8_t*) "\x06", 1); ERR(ret, err);
@@ -80,13 +91,20 @@ int BLC_Commit(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t salt[MQ
         memset((uint8_t*) u1[e], 0, sizeof(u1[e]));
         memset((uint8_t*) x0[e], 0, sizeof(x0[e]));
         for(i = 0; i < MQOM2_PARAM_NB_EVALS; i+=2) {
+            __BENCHMARK_START__(BS_BLC_SEED_COMMIT);
             SeedCommit_x2(&ctx_seed_commit1, &ctx_seed_commit2, lseed[i], lseed[i+1], key->ls_com[e][i], key->ls_com[e][i+1]);
+            __BENCHMARK_STOP__(BS_BLC_SEED_COMMIT);
             
             for(i_ = 0; i_ < 2; i_++) {
                 memcpy(exp, lseed[i+i_], MQOM2_PARAM_SEED_SIZE);
-                ret = PRG(salt, e, lseed[i+i_], BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)+BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_ETA)-MQOM2_PARAM_SEED_SIZE, exp + MQOM2_PARAM_SEED_SIZE); ERR(ret, err);
+                __BENCHMARK_START__(BS_BLC_PRG);
+                ret = PRG(salt, e, lseed[i+i_], PRG_BLC_SIZE, exp + MQOM2_PARAM_SEED_SIZE, prg_cache); ERR(ret, err);
+                __BENCHMARK_STOP__(BS_BLC_PRG);
+                __BENCHMARK_START__(BS_BLC_XOF);
                 ret = xof_update(&xof_ctx, key->ls_com[e][i+i_], MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+                __BENCHMARK_STOP__(BS_BLC_XOF);
                 
+                __BENCHMARK_START__(BS_BLC_ARITH);
                 field_ext_elt w = get_evaluation_point(i+i_);
                 // Compute P_u
                 field_ext_parse(exp + BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N), MQOM2_PARAM_ETA, bar_u_i);
@@ -99,10 +117,16 @@ int BLC_Commit(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t salt[MQ
                 field_base_vect_add(acc_x, bar_x_i, acc_x, MQOM2_PARAM_MQ_N);
                 field_ext_base_constant_vect_mult(w, bar_x_i, tmp_n, MQOM2_PARAM_MQ_N);
                 field_ext_vect_add(x0[e], tmp_n, x0[e], MQOM2_PARAM_MQ_N);
+                __BENCHMARK_STOP__(BS_BLC_ARITH);
             }
         }
+        /* Invalidate the PRG cache */
+        destroy_prg_cache(prg_cache);
+        prg_cache = NULL;
 
+        __BENCHMARK_START__(BS_BLC_XOF);
         ret = xof_squeeze(&xof_ctx, hash_ls_com[e], MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+        __BENCHMARK_STOP__(BS_BLC_XOF);
 
         field_base_elt delta_x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)];
         uint8_t serialized_delta_x[BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)];
@@ -111,6 +135,7 @@ int BLC_Commit(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t salt[MQ
         memcpy(key->partial_delta_x[e], serialized_delta_x+MQOM2_PARAM_SEED_SIZE, BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)-MQOM2_PARAM_SEED_SIZE);
     }
 
+    __BENCHMARK_START__(BS_BLC_GLOBAL_XOF);
     ret = xof_init(&xof_ctx); ERR(ret, err);
     ret = xof_update(&xof_ctx, (const uint8_t*) "\x07", 1); ERR(ret, err);
     for(e = 0; e < MQOM2_PARAM_TAU; e++) {
@@ -120,9 +145,11 @@ int BLC_Commit(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t salt[MQ
         ret = xof_update(&xof_ctx, key->partial_delta_x[e], BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)-MQOM2_PARAM_SEED_SIZE); ERR(ret, err);
     }
     ret = xof_squeeze(&xof_ctx, com1, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+    __BENCHMARK_STOP__(BS_BLC_GLOBAL_XOF);
 
     ret = 0;
 err:
+    destroy_prg_cache(prg_cache);
     return ret;
 }
 
@@ -165,7 +192,13 @@ int BLC_Eval(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com1[MQOM2
     
     uint8_t hash_ls_com[MQOM2_PARAM_TAU][MQOM2_PARAM_DIGEST_SIZE];
 
+    /* PRG cache */
+    prg_key_sched_cache *prg_cache = NULL;
+
     for(e = 0; e < MQOM2_PARAM_TAU; e++){
+        /* Initialize the PRG cache when used */
+        prg_cache = init_prg_cache(PRG_BLC_SIZE);
+
         ret = GGMTree_PartiallyExpand(salt, (uint8_t(*)[MQOM2_PARAM_SEED_SIZE]) &path[e*(MQOM2_PARAM_NB_EVALS_LOG*MQOM2_PARAM_SEED_SIZE)], e, i_star[e], lseed); ERR(ret, err);
 
         TweakSalt(salt, tweaked_salt, 0, e, 0);
@@ -202,7 +235,7 @@ int BLC_Eval(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com1[MQOM2
             for(i_ = 0; i_ < 2; i_++) {
                 if(i+i_ !=i_star[e]) {
                     memcpy(exp, lseed[i+i_], MQOM2_PARAM_SEED_SIZE);
-                    ret = PRG(salt, e, lseed[i+i_], BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)+BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_ETA)-MQOM2_PARAM_SEED_SIZE, exp + MQOM2_PARAM_SEED_SIZE); ERR(ret, err);
+                    ret = PRG(salt, e, lseed[i+i_], PRG_BLC_SIZE, exp + MQOM2_PARAM_SEED_SIZE, prg_cache); ERR(ret, err);
                     ret = xof_update(&xof_ctx, ls_com_e[i+i_], MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
                 
                     field_ext_elt w = get_evaluation_point(i+i_);
@@ -220,7 +253,10 @@ int BLC_Eval(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com1[MQOM2
                 }
             }
         }
-        
+        /* Invalidate the PRG cache */
+        destroy_prg_cache(prg_cache);
+        prg_cache = NULL;
+
         ret = xof_squeeze(&xof_ctx, hash_ls_com[e], MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
     }
 
@@ -241,5 +277,6 @@ int BLC_Eval(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com1[MQOM2
     
     ret = 0;
 err:
+    destroy_prg_cache(prg_cache);
     return ret;
 }

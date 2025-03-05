@@ -2,7 +2,7 @@
 #define __FIELDS_GFNI_H__
 
 /* Check if GFNI is supported */
-#if defined(__GFNI__) && defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VPOPCNTDQ__)
+#if defined(__GFNI__) && defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VL__) && defined(__AVX512VPOPCNTDQ__)
 
 #include "fields_common.h"
 #include "fields_ref.h"
@@ -655,6 +655,6 @@ static inline void gf256to2_mat_transpose_gfni(const uint16_t *A, uint16_t *B, u
 }
 
 
-#endif /* defined(__GFNI__) && defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VPOPCNTDQ__) */
+#endif /* defined(__GFNI__) && defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VL__) && defined(__AVX512VPOPCNTDQ__) */
 
 #endif /* __FIELDS_GFNI_H__ */

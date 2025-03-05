@@ -101,6 +101,31 @@ ifeq ($(FIELDS_GFNI),1)
   # Force GFNI implementation for fields
   CFLAGS += -DFIELDS_GFNI
 endif
+# Adjust the benchmarking mode: by default we measure time unless stated
+# otherwise
+ifneq ($(NO_BENCHMARK_TIME),1)
+  CFLAGS += -DBENCHMARK_TIME
+endif
+# Use the PRG cache for time / memory trade-off optimization
+ifeq ($(USE_PRG_CACHE),1)
+  CFLAGS += -DUSE_PRG_CACHE
+endif
+# Use the PIOP cache for time / memory trade-off optimization
+ifeq ($(USE_PIOP_CACHE),1)
+  CFLAGS += -DUSE_PIOP_CACHE
+endif
+
+## Toggles to force the platform compilation flags
+ifeq ($(FORCE_PLATFORM_AVX2),1)
+  CFLAGS := $(subst -march=native,,$(CFLAGS))
+  CFLAGS := $(subst -mtune=native,,$(CFLAGS))
+  CFLAGS += -maes -mavx2
+endif
+ifeq ($(FORCE_PLATFORM_GFNI),1)
+  CFLAGS := $(subst -march=native,,$(CFLAGS))
+  CFLAGS := $(subst -mtune=native,,$(CFLAGS))
+  CFLAGS += -maes -mgfni -mavx512bw -mavx512f -mavx512vl -mavx512vpopcntdq
+endif
 
 ## Togles for various analysis and other useful stuff
 # Static analysis of gcc
@@ -125,6 +150,12 @@ ifneq ($(PARAM_SECURITY),)
   CFLAGS += -DMQOM2_PARAM_SECURITY=$(PARAM_SECURITY)
 endif
 
+ifneq ($(DESTINATION_PATH),)
+  DESTINATION_PATH := $(DESTINATION_PATH)/
+endif
+ifneq ($(PREFIX_EXEC),)
+PREFIX_EXEC := $(PREFIX_EXEC)_
+endif
 
 all: libhash $(OBJS)
 
@@ -142,16 +173,16 @@ libhash:
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 sign: libhash $(OBJS)
-	$(CC) $(CFLAGS) generator/PQCgenKAT_sign.c generator/rng.c $(OBJS) $(LIB_HASH) -lcrypto -o sign
+	$(CC) $(CFLAGS) generator/PQCgenKAT_sign.c generator/rng.c $(OBJS) $(LIB_HASH) -lcrypto -o $(DESTINATION_PATH)$(PREFIX_EXEC)sign
 
 kat_gen: libhash $(OBJS)
-	$(CC) $(CFLAGS) generator/PQCgenKAT_sign.c generator/rng.c $(OBJS) $(LIB_HASH) -lcrypto -o kat_gen
+	$(CC) $(CFLAGS) generator/PQCgenKAT_sign.c generator/rng.c $(OBJS) $(LIB_HASH) -lcrypto -o $(DESTINATION_PATH)$(PREFIX_EXEC)kat_gen
 
 kat_check: libhash $(OBJS)
-	$(CC) $(CFLAGS) generator/PQCgenKAT_check.c generator/rng.c $(OBJS) $(LIB_HASH) -lcrypto -o kat_check
+	$(CC) $(CFLAGS) generator/PQCgenKAT_check.c generator/rng.c $(OBJS) $(LIB_HASH) -lcrypto -o $(DESTINATION_PATH)$(PREFIX_EXEC)kat_check
 
 bench: libhash $(OBJS)
-	$(CC) $(CFLAGS) benchmark/bench.c benchmark/timing.c $(OBJS) $(LIB_HASH) -lm -o bench
+	$(CC) $(CFLAGS) benchmark/bench.c benchmark/timing.c $(OBJS) $(LIB_HASH) -lm -o $(DESTINATION_PATH)$(PREFIX_EXEC)bench
 
 clean:
 	@cd $(LIB_HASH_DIR) && make clean
