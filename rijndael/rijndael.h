@@ -1,6 +1,8 @@
 #ifndef __RIJNDAEL_H__
 #define __RIJNDAEL_H__
 
+#include "rijndael_platform.h"
+
 #if defined(RIJNDAEL_CONSTANT_TIME_REF) && defined(RIJNDAEL_TABLE)
 #error "RIJNDAEL_CONSTANT_TIME_REF, RIJNDAEL_TABLE and RIJNDAEL_AES_NI are exclusive!"
 #endif

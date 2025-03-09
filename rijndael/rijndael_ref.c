@@ -1,3 +1,5 @@
+#include "rijndael_platform.h"
+
 #if defined(RIJNDAEL_CONSTANT_TIME_REF)
 #include "rijndael_ref.h"
 

@@ -4,7 +4,7 @@
 #include "rijndael_common.h"
 
 /* The general Rijndael core context structure */
-typedef struct
+typedef struct  __attribute__((packed))
 {
 	rijndael_type rtype; /* Type of Rijndael */
         uint32_t Nr; /* Number of rounds */

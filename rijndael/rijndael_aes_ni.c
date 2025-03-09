@@ -1,3 +1,5 @@
+#include "rijndael_platform.h"
+
 #if defined(RIJNDAEL_AES_NI)
 
 /* This file mainly contains an optimized implementation

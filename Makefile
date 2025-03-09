@@ -24,16 +24,6 @@ endif
 # Keccak related stuff, in the form of an external library
 LIB_HASH_DIR = sha3
 LIB_HASH = $(LIB_HASH_DIR)/libhash.a
-# Adjust the include dir depending on the target platform
-ifeq ($(KECCAK_AVX2),1)
-  # AVX2 optimized
-  LIB_HASH_INCLUDES = $(LIB_HASH_DIR) $(LIB_HASH_DIR)/avx2
-  PLATFORM=avx2
-else
-  # Generic portable C 64-bit optimized
-  LIB_HASH_INCLUDES = $(LIB_HASH_DIR) $(LIB_HASH_DIR)/opt64
-  PLATFORM=opt64
-endif
 
 # Rinjdael related stuff
 RIJNDAEL_DIR = rijndael
@@ -64,13 +54,6 @@ RANLIB ?= ranlib
 
 # Basic CFLAGS
 CFLAGS ?= -O3 -march=native -mtune=native -Wall -Wextra -DNDEBUG
-# Include the necessary headers
-CFLAGS += $(foreach DIR, $(LIB_HASH_INCLUDES), -I$(DIR))
-CFLAGS += $(foreach DIR, $(RIJNDAEL_INCLUDES), -I$(DIR))
-CFLAGS += $(foreach DIR, $(FIELDS_INCLUDES), -I$(DIR))
-CFLAGS += $(foreach DIR, $(MQOM2_INCLUDES), -I$(DIR))
-# Possibly append user provided extra CFLAGS
-CFLAGS += $(EXTRA_CFLAGS)
 
 ifneq ($(GCC),)
   # Remove gcc's -Warray-bounds and -W-stringop-overflow/-W-stringop-overread as they give many false positives
@@ -82,10 +65,12 @@ endif
 ifeq ($(RIJNDAEL_TABLE),1)
   # Table based optimzed *non-constant time* Rijndael
   CFLAGS += -DRIJNDAEL_TABLE
-else ifeq ($(RIJNDAEL_AES_NI),1)
+endif
+ifeq ($(RIJNDAEL_AES_NI),1)
   # AES-NI (requires support on the x86 platform) constant time Rijndael
   CFLAGS += -DRIJNDAEL_AES_NI
-else
+endif
+ifeq ($(RIJNDAEL_CONSTANT_TIME_REF),1)
   # Reference constant time (slow) Rijndael
   CFLAGS += -DRIJNDAEL_CONSTANT_TIME_REF
 endif
@@ -106,13 +91,19 @@ endif
 ifneq ($(NO_BENCHMARK_TIME),1)
   CFLAGS += -DBENCHMARK_TIME
 endif
-# Use the PRG cache for time / memory trade-off optimization
-ifeq ($(USE_PRG_CACHE),1)
+# Disable the PRG cache for time / memory trade-off optimization
+# The cache is activated by default
+ifneq ($(USE_PRG_CACHE),0)
   CFLAGS += -DUSE_PRG_CACHE
 endif
-# Use the PIOP cache for time / memory trade-off optimization
-ifeq ($(USE_PIOP_CACHE),1)
+# Disable the PIOP cache for time / memory trade-off optimization
+# The cache is activated by default
+ifneq ($(USE_PIOP_CACHE),0)
   CFLAGS += -DUSE_PIOP_CACHE
+endif
+# Use the XOF x4 acceleration
+ifeq ($(USE_XOF_X4),1)
+  CFLAGS += -DUSE_XOF_X4
 endif
 
 ## Toggles to force the platform compilation flags
@@ -157,11 +148,43 @@ ifneq ($(PREFIX_EXEC),)
 PREFIX_EXEC := $(PREFIX_EXEC)_
 endif
 
+### Keccak library specific platfrom related flags
+# If no platform is specified for Keccak, try to autodetect it
+ifeq ($(KECCAK_PLATFORM),)
+  KECCAK_DETECT_PLATFORM_AVX2=$(shell $(CC) $(CFLAGS) -dM -E - < /dev/null |egrep AVX2)
+  ifneq ($(KECCAK_DETECT_PLATFORM_AVX2),)
+    KECCAK_PLATFORM=avx2
+  else
+    KECCAK_PLATFORM=opt64
+  endif
+endif
+# Adjust the include dir depending on the target platform
+ifeq ($(KECCAK_PLATFORM),avx2)
+  # AVX2 optimized
+  LIB_HASH_INCLUDES = $(LIB_HASH_DIR) $(LIB_HASH_DIR)/avx2
+endif
+ifeq ($(KECCAK_PLATFORM),opt64)
+  # Generic portable C 64-bit optimized
+  LIB_HASH_INCLUDES = $(LIB_HASH_DIR) $(LIB_HASH_DIR)/opt64
+endif
+ifeq ($(KECCAK_PLATFORM),plain32)
+  # Generic portable C 32-bit optimized
+  LIB_HASH_INCLUDES = $(LIB_HASH_DIR) $(LIB_HASH_DIR)/plain32
+endif
+
+# Include the necessary headers
+CFLAGS += $(foreach DIR, $(LIB_HASH_INCLUDES), -I$(DIR))
+CFLAGS += $(foreach DIR, $(RIJNDAEL_INCLUDES), -I$(DIR))
+CFLAGS += $(foreach DIR, $(FIELDS_INCLUDES), -I$(DIR))
+CFLAGS += $(foreach DIR, $(MQOM2_INCLUDES), -I$(DIR))
+# Possibly append user provided extra CFLAGS
+CFLAGS += $(EXTRA_CFLAGS)
+
 all: libhash $(OBJS)
 
 libhash:
 	@echo "[+] Compiling libhash"
-	cd $(LIB_HASH_DIR) && PLATFORM=$(PLATFORM) make
+	cd $(LIB_HASH_DIR) && KECCAK_PLATFORM=$(KECCAK_PLATFORM) make
 
 .c.o:
 	$(CC) $(CFLAGS) -c -o $@ $<

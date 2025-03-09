@@ -332,6 +332,10 @@ static inline void field_ext_mat_transpose(const field_ext_elt *A, field_ext_elt
 	return;
 }
 
+/*
+ * NOTE: these are rather "naive" xors between bytes, but the compiler optimization passes should
+ * hopefully properly vectorize this.
+ */
 static inline void field_base_vect_add(const field_base_elt *a, const field_base_elt *b, field_base_elt *c, uint32_t len)
 {
 	uint32_t i;

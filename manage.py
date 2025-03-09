@@ -28,6 +28,8 @@ parser_compile = subparsers.add_parser('compile', help='compile scheme')
 parser_compile.add_argument('schemes', nargs='+', choices=choices_scheme_sets, help='schemes to compile')
 parser_compile.add_argument('--no-kat', action='store_true', dest='b_no_kat', help='Avoid compiling the "kat_gen" and "kat_check" executables')
 parser_compile.add_argument('--no-bench', action='store_true', dest='b_no_bench', help='Avoid compiling the "bench" executable')
+parser_compile.add_argument('--verbose', action='store_true', dest='b_verbose_compilation', help='Activate verbose compilation')
+parser_compile.add_argument('-p', '--parallel-jobs', dest='parallel_jobs', type=int, default=0, help='Number of parallel jobs (-1 means max, 0 means monojob)')
 
 parser_set = subparsers.add_parser('env', help='get environment variables')
 parser_set.add_argument('scheme', choices=choices_schemes, help='scheme to get')
@@ -35,13 +37,17 @@ parser_set.add_argument('scheme', choices=choices_schemes, help='scheme to get')
 parser_set = subparsers.add_parser('clean', help='clean compilation objects and build folder')
 
 parser_bench = subparsers.add_parser('bench', help='bench')
-parser_bench.add_argument('-n', '--nb-repetitions', dest='nb_repetitions', type=int, default=100, help='Number of repetitions')
 parser_bench.add_argument('schemes', nargs='+', choices=choices_scheme_sets, help='schemes to benchmark')
+parser_bench.add_argument('-n', '--nb-repetitions', dest='nb_repetitions', type=int, default=100, help='Number of repetitions')
+parser_bench.add_argument('-p', '--parallel-jobs', dest='parallel_jobs', type=int, default=0, help='Number of parallel jobs (-1 means max, 0 means monojob)')
 
 parser_test = subparsers.add_parser('test', help='test')
+parser_test.add_argument('schemes', nargs='+', choices=choices_scheme_sets, help='schemes to test')
 parser_test.add_argument('-n', '--nb-repetitions', dest='nb_repetitions', type=int, default=10, help='Number of repetitions')
-parser_test.add_argument('--compare-kat', dest='compare_kat', help='Compare KAT')
+parser_test.add_argument('-c', '--compare-kat', dest='compare_kat', default=None, help='Compare KAT (provide a ZIP file representing a submission package)')
+parser_test.add_argument('--no-kat-check', action='store_true', dest='b_no_kat_check', help='Avoid executing the KAT check (only the gen is executed)')
 parser_test.add_argument('--no-valgrind', action='store_true', dest='b_no_valgrind', help='Avoid using valgrind')
+parser_test.add_argument('-p', '--parallel-jobs', dest='parallel_jobs', type=int, default=0, help='Number of parallel jobs (-1 means max, 0 means monojob)')
 
 arguments = parser.parse_args()
 
@@ -65,7 +71,8 @@ def run_command(command, cwd, shell=False):
 class MQOMInstance:
     def __init__(self, scheme, dst_path):
         self.scheme = scheme
-        self.dst_path = dst_path
+        self.dst_path = dst_path / self.get_label()
+        self.dst_path.mkdir(parents=True, exist_ok=True) 
 
         (cat, field, tradeoff, variant) = self.scheme
         extra_cflags  = os.getenv('EXTRA_CFLAGS', '')
@@ -87,28 +94,29 @@ class MQOMInstance:
     def clean(self):
         run_command('make clean', CWD, shell=True)
 
-    def compile_bench(self):
+    def compile_bench(self, folder):
         extra_cflags = self.compilation_prefix['EXTRA_CFLAGS']
         prefix_exec = self.get_label()
         dst_path = self.dst_path
-        return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench', CWD, shell=True)
+        return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench', folder, shell=True)
 
-    def compile_kat_gen(self):
+    def compile_kat_gen(self, folder):
         extra_cflags = self.compilation_prefix['EXTRA_CFLAGS']
         prefix_exec = self.get_label()
         dst_path = self.dst_path
-        return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make kat_gen', CWD, shell=True)
+        return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make kat_gen', folder, shell=True)
 
-    def compile_kat_check(self):
+    def compile_kat_check(self, folder):
         extra_cflags = self.compilation_prefix['EXTRA_CFLAGS']
         prefix_exec = self.get_label()
         dst_path = self.dst_path
-        return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make kat_check', CWD, shell=True)
+        return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make kat_check', folder, shell=True)
 
     def run_bench(self, nb_experiments):
         scheme_label = self.get_label()
-        stdout, stderr = run_command(f'{BUILD_PATH}/{scheme_label}_bench {nb_experiments}', cwd=CWD)
-        assert (not stderr) or (('error' not in stderr) and ('ERROR' not in stderr)), stderr
+        dst_path = self.dst_path
+        stdout, stderr = run_command(f'{dst_path}/{scheme_label}_bench {nb_experiments}', cwd=CWD)
+        assert (not stderr), stderr
 
         # check that the score is maximal
         data = {
@@ -180,15 +188,18 @@ class MQOMInstance:
     
     def run_kat_gen(self):
         scheme_label = self.get_label()
-        return run_command(f'{BUILD_PATH}/{scheme_label}_kat_gen', cwd=CWD)
+        dst_path = self.dst_path
+        return run_command(f'cd {dst_path} && ./{scheme_label}_kat_gen', cwd=CWD, shell=True)
 
     def run_kat_check(self):
         scheme_label = self.get_label()
-        return run_command(f'{BUILD_PATH}/{scheme_label}_kat_check', cwd=CWD)
+        dst_path = self.dst_path
+        return run_command(f'cd {dst_path} && ./{scheme_label}_kat_check', cwd=CWD, shell=True)
 
     def run_valgrind_bench(self):
         scheme_label = self.get_label()
-        _, stderr = run_command(f'valgrind --leak-check=yes ./{BUILD_PATH}/{scheme_label}_bench 1', cwd=CWD)
+        dst_path = self.dst_path
+        _, stderr = run_command(f'valgrind --leak-check=yes {dst_path}/{scheme_label}_bench 1', cwd=CWD)
         summary = [line for line in stderr.split('\n') if 'ERROR SUMMARY' in line][0]
         return summary
 
@@ -254,28 +265,71 @@ CWD = pathlib.Path(__file__).absolute().parent
 BUILD_PATH = CWD.joinpath('build')
 
 if arguments.command == 'compile':
+    import contextlib, atexit, tempfile, shutil
+
+    tempdir_names = []
+
+    def cleanup_stuff():
+        global tempdir_names
+        for t in tempdir_names:
+            shutil.rmtree(t, ignore_errors=True)
+
+    def signal_handler(sig, frame):
+        print('You pressed Ctrl+C! Exiting')
+        cleanup_stuff()
+        sys.exit(0)
+
+    def copy_folder(src_path, dst_path, only_root=False):
+        for root, dirs, files in os.walk(src_path):
+            subpath = root[len(src_path)+1:]
+            root_created = False
+            for filename in files:
+                _, file_extension = os.path.splitext(filename)
+                if file_extension in ['.h', '.c', '.inc', '.macros', '.S'] or filename in ['Makefile', '.gitignore']:
+                    if not root_created:
+                        os.makedirs(os.path.join(dst_path, subpath),  exist_ok = True)
+                        root_created = True
+                    shutil.copyfile(
+                        os.path.join(src_path, subpath, filename),
+                        os.path.join(dst_path, subpath, filename)
+                    )
+
+    # Register the signal handler
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # Register At exist handler
+    atexit.register(cleanup_stuff)
+
+    def handle_scheme_compile(scheme):
+        print(f'[+] {scheme.get_label()}')
+        scheme.clean()
+        tname = '/tmp/' + scheme.get_label()
+        tempdir_names.append(tname)
+        # Copy the source tree to the temporary folder
+        copy_folder(str(CWD), tname)
+        if not arguments.b_no_bench:
+            stdout, stderr = scheme.compile_bench(tname)
+            if arguments.b_verbose_compilation or stderr:
+                print(stdout, stderr)
+        if not arguments.b_no_kat:
+            stdout, stderr = scheme.compile_kat_gen(tname)
+            if arguments.b_verbose_compilation or stderr:
+                print(stdout, stderr)
+            stdout, stderr = scheme.compile_kat_check(tname)
+            if arguments.b_verbose_compilation or stderr:
+                print(stdout, stderr)
+    # Register the signal handler
+    signal.signal(signal.SIGINT, signal_handler)
     # Create build folder
     BUILD_PATH.mkdir(parents=True, exist_ok=True) 
-
     # Compile all the selected schemes
     schemes = MQOMInstance.get_schemes(arguments.schemes, BUILD_PATH)
-    for scheme in schemes:
-        print(f'[+] {scheme.get_label()}')
-
-        scheme.clean()
-        if not arguments.b_no_bench:
-            stdout, stderr = scheme.compile_bench()
-            if stderr:
-                print(stdout, stderr)
-        
-        if not arguments.b_no_kat:
-            stdout, stderr = scheme.compile_kat_gen()
-            if stderr:
-                print(stdout, stderr)
-
-            stdout, stderr = scheme.compile_kat_check()
-            if stderr:
-                print(stdout, stderr)
+    if arguments.parallel_jobs != 0:
+        from joblib import Parallel, delayed
+        results = Parallel(n_jobs=arguments.parallel_jobs, backend="threading")(map(delayed(handle_scheme_compile), schemes))
+    else:
+        for scheme in schemes:
+            handle_scheme_compile(scheme)
 
 elif arguments.command == 'env':
     # Get the selected schemes
@@ -289,8 +343,11 @@ elif arguments.command == 'clean':
     shutil.rmtree(BUILD_PATH, ignore_errors=True)
 
 elif arguments.command == 'bench':
+    import threading
     STATS_PATH = CWD.joinpath('stats')
     STATS_PATH.mkdir(parents=True, exist_ok=True) 
+    # This is a threading lock to handle parallelism for writing into a file
+    lock = threading.Lock()
 
     # Open json file
     stats_file_name = STATS_PATH.joinpath('%s.json' % time.strftime("%Y%m%d_%H%M%S"))
@@ -308,6 +365,20 @@ elif arguments.command == 'bench':
             pass
         sys.exit(0)
 
+    def handle_scheme_bench(scheme):
+        print(f'[+] {scheme.get_label()}')
+        data = scheme.run_bench(nb_experiments)
+        assert data['correctness'] == nb_experiments, (data['correctness'], nb_experiments)
+        #assert data['debug'].lower() == 'off', data['debug']
+        with lock:
+            if len(all_data) != 0:
+                stats_file.write(',')
+            stats_file.write(json.dumps(data))
+            # Flush and sync data in file
+            stats_file.flush()
+            os.fsync(stats_file)
+            all_data.append(data)
+
     # Register the signal handler
     signal.signal(signal.SIGINT, signal_handler)
 
@@ -315,19 +386,12 @@ elif arguments.command == 'bench':
     print(f'Nb repetitions: {nb_experiments}')
     schemes = MQOMInstance.get_schemes(arguments.schemes, BUILD_PATH)
     all_data = []
-    for scheme in schemes:
-        print(f'[+] {scheme.get_label()}')
-        data = scheme.run_bench(nb_experiments)
-        assert data['correctness'] == nb_experiments, (data['correctness'], nb_experiments)
-        #assert data['debug'].lower() == 'off', data['debug']
-
-        if len(all_data) != 0:
-            stats_file.write(',')
-        stats_file.write(json.dumps(data))
-        # Flush and sync data in file
-        stats_file.flush()
-        os.fsync(stats_file)
-        all_data.append(data)
+    if arguments.parallel_jobs != 0:
+        from joblib import Parallel, delayed
+        results = Parallel(n_jobs=arguments.parallel_jobs, backend="threading")(map(delayed(handle_scheme_bench), schemes))
+    else:
+        for scheme in schemes:
+            handle_scheme_bench(scheme)
 
     try:
         stats_file.write("]")
@@ -337,11 +401,15 @@ elif arguments.command == 'bench':
         pass
 
 elif arguments.command == 'test':
-    import contextlib, atexit, tempfile, filecmp
+    import contextlib, atexit, tempfile, filecmp, shutil
 
     KAT_Folder = None
     tempdir_obj = None
-    tempdir = None
+    tempdir_name = None
+
+    def signal_handler(sig, frame):
+        print('You pressed Ctrl+C! Exiting')
+        sys.exit(0)
 
     @contextlib.contextmanager
     def cd(newdir, cleanup=lambda: True):
@@ -362,69 +430,78 @@ elif arguments.command == 'test':
             yield dirpath
 
     def cleanup_stuff():
-        global tempdir
-        if tempdir is not None:
-            shutil.rmtree(tempdir)
-            tempdir = None
+        global tempdir_name
+        if tempdir_name is not None:
+            shutil.rmtree(tempdir_name)
+            tempdir_name = None
+
+    # Register the signal handler
+    signal.signal(signal.SIGINT, signal_handler)
+
     # Register At exist handler
     atexit.register(cleanup_stuff)
 
-    if arguments.compare_kat != '':
+    if arguments.compare_kat != None:
         import zipfile
         try:
             zf = zipfile.ZipFile(arguments.compare_kat)
             tempdir_obj = tempdir()
-            tempdir = str(tempdir_obj)
-            zf.extractall(tempdir)
+            tempdir_name = str(tempdir_obj)
+            zf.extractall(tempdir_name)
         except:
             print("Error: cannot handle provided ZIP package %s" % arguments.compare_kat)
             sys.exit(-1)
         # The uncompressed folder should contain a KAT folder
-        KAT_Folder = tempdir + "/submission_package_v2/KAT"
+        KAT_Folder = tempdir_name + "/submission_package_v2/KAT"
         if not os.path.isdir(KAT_Folder):
             print("Error: no KAT folder in the uncompressed ZIP package %s" % arguments.compare_kat)
             sys.exit(-1)
         print("[+] KAT folder found in the provided ZIP package %s" % arguments.compare_kat)
 
-    schemes = MQOMInstance.get_schemes(arguments.schemes)
-    for scheme in schemes:
+    def handle_scheme_test(scheme):
         print(f'[+] {scheme.get_label()}')
-
         nb_experiments = arguments.nb_repetitions
         data = scheme.run_bench(nb_experiments)
         assert data['correctness'] == nb_experiments, (data['correctness'], nb_experiments)
-
         # Generate KAT
         stdout, stderr = scheme.run_kat_gen()
-        assert (not stderr) or (('error' not in stderr) and ('ERROR' not in stderr)), stderr
+        assert (not stderr), stderr
         file_req = 'PQCsignKAT_{}.req'.format(data['sk_size'])
         file_rsp = 'PQCsignKAT_{}.rsp'.format(data['sk_size'])
-        has_file_req = os.path.exists(os.path.join(scheme, file_req))
-        has_file_rsp = os.path.exists(os.path.join(scheme, file_rsp))
+        has_file_req = os.path.exists(os.path.join(scheme.dst_path, file_req))
+        has_file_rsp = os.path.exists(os.path.join(scheme.dst_path, file_rsp))
         if has_file_req and has_file_rsp:
-            print(' - KAT generation: ok')
+            print(' - KAT generation: ok (for %s)' % scheme.get_label())
         else:
-            print(' - KAT generation: ERROR!')
-        # Check KAT
-        stdout, stderr = scheme.run_kat_check()
-        assert (not stderr) or (('error' not in stderr) and ('ERROR' not in stderr)), stderr
-        assert ('Everything is fine!' in stdout), stdout
-        print(' - KAT check: ok')
-
+            print(' - KAT generation: ERROR! (for %s)' % scheme.get_label())
+            sys.exit(-1)
+        if not arguments.b_no_kat_check:
+            # Check KAT
+            stdout, stderr = scheme.run_kat_check()
+            assert (not stderr), stderr
+            assert ('Everything is fine!' in stdout), stdout
+            print(' - KAT check: ok (for %s)' % scheme.get_label())
         # Compare the KAT with an existing reference one?
         if KAT_Folder is not None:
             # Check that we indeed have the KAT for the tested scheme
             scheme_name = 'mqom2_%s' % scheme.get_label()
             # Check that our KAT files exist
             KAT_file_name_scheme = KAT_Folder + "/" + scheme_name + "/" + "PQCsignKAT_" + str(data['sk_size']) + ".rsp"
-            KAT_file_name_scheme_generated = scheme + "/" + "PQCsignKAT_" + str(data['sk_size']) + ".rsp"
+            KAT_file_name_scheme_generated = str(scheme.dst_path) + "/" + "PQCsignKAT_" + str(data['sk_size']) + ".rsp"
             # Now make a bin diff between the two files
             if filecmp.cmp(KAT_file_name_scheme, KAT_file_name_scheme_generated) is True:
-                print(' - KAT check with reference KAT: ok')
+                print(' - KAT check with reference KAT: ok (for %s)' % scheme.get_label())
             else:
                 print(' - KAT check with reference KAT: ERROR! (for %s)' % KAT_file_name_scheme_generated)
                 sys.exit(-1)
-
         if not arguments.b_no_valgrind:
             summary = scheme.run_valgrind_bench()
-            print(f' - Valgrind: "{summary}"')
+            print(f' - Valgrind: "{summary}" (for %s)' % scheme.get_label())
+
+    schemes = MQOMInstance.get_schemes(arguments.schemes, BUILD_PATH)
+    if arguments.parallel_jobs != 0:
+        from joblib import Parallel, delayed
+        results = Parallel(n_jobs=arguments.parallel_jobs, backend="threading")(map(delayed(handle_scheme_test), schemes))
+    else:
+        for scheme in schemes:
+            handle_scheme_test(scheme)

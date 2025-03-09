@@ -1,3 +1,5 @@
+#include "rijndael_platform.h"
+
 #if defined(RIJNDAEL_TABLE)
 #include "rijndael_table.h"
 

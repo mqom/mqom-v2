@@ -224,7 +224,7 @@ int BLC_Eval(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com1[MQOM2
         field_ext_base_constant_vect_mult(r, delta_x, x_eval[e], MQOM2_PARAM_MQ_N);
         
         for(i = 0; i < MQOM2_PARAM_NB_EVALS; i+=2) {
-            if(i != i_star[e] && i+1 != i_star[e]) {
+            if((i != i_star[e]) && (i+1 != i_star[e])) {
                 SeedCommit_x2(&ctx_seed_commit1, &ctx_seed_commit2, lseed[i], lseed[i+1], ls_com_e[i], ls_com_e[i+1]);
             } else if(i != i_star[e]) {
                 SeedCommit(&ctx_seed_commit1, &ctx_seed_commit2, lseed[i], ls_com_e[i]);

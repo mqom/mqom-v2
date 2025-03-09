@@ -78,8 +78,8 @@ __attribute__((constructor)) static inline void ticks_setup(void)
     attr.exclude_hv = 1;
     fdperf = syscall(__NR_perf_event_open,&attr,0,-1,-1,0);
     if (fdperf == -1){
-        printf("Error: performance counters configuration failed ...\n");
-        printf("  => Please configure RDPMC access with (as superuser) 'echo 2 > /proc/sys/kernel/perf_event_paranoid' (i.e. allow access from userland)\n");
+        fprintf(stderr, "Error: performance counters configuration failed ...\n");
+        fprintf(stderr, "  => Please configure RDPMC access with (as superuser) 'echo 2 > /proc/sys/kernel/perf_event_paranoid' (i.e. allow access from userland)\n");
         exit(-1);
     }
     buf = mmap(NULL,sysconf(_SC_PAGESIZE),PROT_READ,MAP_SHARED,fdperf,0);
