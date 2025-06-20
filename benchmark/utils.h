@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 #include "api.h"
+#include "rijndael/rijndael.h"
+#include "fields.h"
 
 static inline int get_number_of_tests(int argc, char *argv[], int default_value) {
     int nb_tests = default_value;
@@ -41,8 +43,12 @@ static inline void print_configuration(void) {
 #ifdef __AES__
     printf(" AES-NI");
 #endif
-
     printf("\n");
+
+
+    printf("Rijndael implementation: %s\n", rijndael_conf);
+    printf("Fields implementation: %s\n", fields_conf);
+
 #ifndef NDEBUG
     printf("Debug: On\n");
 #else

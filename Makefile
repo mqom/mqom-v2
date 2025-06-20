@@ -28,7 +28,7 @@ LIB_HASH = $(LIB_HASH_DIR)/libhash.a
 # Rinjdael related stuff
 RIJNDAEL_DIR = rijndael
 RIJNDAEL_INCLUDES = $(RIJNDAEL_DIR)
-RIJNDAEL_SRC_FILES = $(RIJNDAEL_DIR)/rijndael_ref.c $(RIJNDAEL_DIR)/rijndael_table.c $(RIJNDAEL_DIR)/rijndael_aes_ni.c
+RIJNDAEL_SRC_FILES = $(RIJNDAEL_DIR)/rijndael_ref.c $(RIJNDAEL_DIR)/rijndael_table.c $(RIJNDAEL_DIR)/rijndael_aes_ni.c $(RIJNDAEL_DIR)/rijndael_ct64.c
 RIJNDAEL_OBJS   = $(patsubst %.c,%.o, $(filter %.c,$(RIJNDAEL_SRC_FILES)))
 RIJNDAEL_OBJS  += $(patsubst %.s,%.o, $(filter %.s,$(RIJNDAEL_SRC_FILES)))
 RIJNDAEL_OBJS  += $(patsubst %.S,%.o, $(filter %.S,$(RIJNDAEL_SRC_FILES)))
@@ -74,6 +74,11 @@ ifeq ($(RIJNDAEL_CONSTANT_TIME_REF),1)
   # Reference constant time (slow) Rijndael
   CFLAGS += -DRIJNDAEL_CONSTANT_TIME_REF
 endif
+ifeq ($(RIJNDAEL_BITSLICE),1)
+  # Constant time bitslice Rijndael
+  CFLAGS += -DRIJNDAEL_BITSLICE
+endif
+
 ifeq ($(FIELDS_REF),1)
   # Reference implementation for fields
   CFLAGS += -DFIELDS_REF
@@ -101,9 +106,13 @@ endif
 ifneq ($(USE_PIOP_CACHE),0)
   CFLAGS += -DUSE_PIOP_CACHE
 endif
-# Use the XOF x4 acceleration
-ifeq ($(USE_XOF_X4),1)
+# Use the XOF x4 acceleration by default
+ifneq ($(USE_XOF_X4),0)
   CFLAGS += -DUSE_XOF_X4
+endif
+# Activate optimizing memory for the seed trees
+ifeq ($(MEMORY_EFFICIENT_BLC),1)
+  CFLAGS += -DMEMORY_EFFICIENT_BLC
 endif
 
 ## Toggles to force the platform compilation flags
@@ -130,7 +139,10 @@ ifeq ($(FLTO),1)
 endif
 # Use the sanitizers
 ifeq ($(USE_SANITIZERS),1)
-CFLAGS += -fsanitize=undefined -fsanitize=address -fsanitize=leak
+CFLAGS += -fsanitize=address -fsanitize=leak -fsanitize=undefined
+  ifeq ($(USE_SANITIZERS_IGNORE_ALIGN),1)
+    CFLAGS += -fno-sanitize=alignment
+  endif
 endif
 ifeq ($(WERROR), 1)
   # Sometimes "-Werror" might be too much, we only use it when asked to
@@ -151,26 +163,27 @@ endif
 ### Keccak library specific platfrom related flags
 # If no platform is specified for Keccak, try to autodetect it
 ifeq ($(KECCAK_PLATFORM),)
+  KECCAK_DETECT_PLATFORM_AVX512VL=$(shell $(CC) $(CFLAGS) -dM -E - < /dev/null |egrep AVX512VL)
+  KECCAK_DETECT_PLATFORM_AVX512F=$(shell $(CC) $(CFLAGS) -dM -E - < /dev/null |egrep AVX512F)
   KECCAK_DETECT_PLATFORM_AVX2=$(shell $(CC) $(CFLAGS) -dM -E - < /dev/null |egrep AVX2)
-  ifneq ($(KECCAK_DETECT_PLATFORM_AVX2),)
-    KECCAK_PLATFORM=avx2
+  KECCAK_DETECT_PLATFORM_AVX512=
+  ifneq ($(KECCAK_DETECT_PLATFORM_AVX512VL),)
+    ifneq ($(KECCAK_DETECT_PLATFORM_AVX512F),)
+        KECCAK_DETECT_PLATFORM_AVX512=1
+    endif
+  endif
+  ifneq ($(KECCAK_DETECT_PLATFORM_AVX512),)
+      KECCAK_PLATFORM=avx512
   else
-    KECCAK_PLATFORM=opt64
+    ifneq ($(KECCAK_DETECT_PLATFORM_AVX2),)
+      KECCAK_PLATFORM=avx2
+    else
+      KECCAK_PLATFORM=opt64
+    endif
   endif
 endif
 # Adjust the include dir depending on the target platform
-ifeq ($(KECCAK_PLATFORM),avx2)
-  # AVX2 optimized
-  LIB_HASH_INCLUDES = $(LIB_HASH_DIR) $(LIB_HASH_DIR)/avx2
-endif
-ifeq ($(KECCAK_PLATFORM),opt64)
-  # Generic portable C 64-bit optimized
-  LIB_HASH_INCLUDES = $(LIB_HASH_DIR) $(LIB_HASH_DIR)/opt64
-endif
-ifeq ($(KECCAK_PLATFORM),plain32)
-  # Generic portable C 32-bit optimized
-  LIB_HASH_INCLUDES = $(LIB_HASH_DIR) $(LIB_HASH_DIR)/plain32
-endif
+LIB_HASH_INCLUDES = $(LIB_HASH_DIR) $(LIB_HASH_DIR)/$(KECCAK_PLATFORM)
 
 # Include the necessary headers
 CFLAGS += $(foreach DIR, $(LIB_HASH_INCLUDES), -I$(DIR))
@@ -207,7 +220,16 @@ kat_check: libhash $(OBJS)
 bench: libhash $(OBJS)
 	$(CC) $(CFLAGS) benchmark/bench.c benchmark/timing.c $(OBJS) $(LIB_HASH) -lm -o $(DESTINATION_PATH)$(PREFIX_EXEC)bench
 
+bench_mem_keygen: libhash $(OBJS)
+	$(CC) $(CFLAGS) benchmark/bench_mem_keygen.c $(OBJS) $(LIB_HASH) -lm -o $(DESTINATION_PATH)$(PREFIX_EXEC)bench_mem_keygen
+
+bench_mem_sign: libhash $(OBJS)
+	$(CC) $(CFLAGS) benchmark/bench_mem_sign.c $(OBJS) $(LIB_HASH) -lm -o $(DESTINATION_PATH)$(PREFIX_EXEC)bench_mem_sign
+
+bench_mem_open: libhash $(OBJS)
+	$(CC) $(CFLAGS) benchmark/bench_mem_open.c $(OBJS) $(LIB_HASH) -lm -o $(DESTINATION_PATH)$(PREFIX_EXEC)bench_mem_open
+
 clean:
 	@cd $(LIB_HASH_DIR) && make clean
 	@find . -name "*.o" -type f -delete
-	@rm -f kat_gen kat_check bench sign
+	@rm -f kat_gen kat_check bench bench_mem_keygen bench_mem_sign bench_mem_open sign

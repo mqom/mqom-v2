@@ -224,15 +224,16 @@ static inline __m256i load_incomplete_m256(const uint8_t *a, uint32_t len)
 static inline uint8_t parity_avx2(__m256i v) {
 	uint8_t res;
 
-	res  = _mm_popcnt_u64(_mm256_extract_epi64(v, 0)) & 1;
-	res ^= _mm_popcnt_u64(_mm256_extract_epi64(v, 1)) & 1;
-	res ^= _mm_popcnt_u64(_mm256_extract_epi64(v, 2)) & 1;
-	res ^= _mm_popcnt_u64(_mm256_extract_epi64(v, 3)) & 1;
+	res  = _mm_popcnt_u64(_mm256_extract_epi64(v, 0));
+	res ^= _mm_popcnt_u64(_mm256_extract_epi64(v, 1));
+	res ^= _mm_popcnt_u64(_mm256_extract_epi64(v, 2));
+	res ^= _mm_popcnt_u64(_mm256_extract_epi64(v, 3));
 
-	return res;
+	return (res & 1);
 }
 
 static inline uint8_t sum_uint8_avx2(__m256i accu) {
+#if 0
         uint32_t i;
         uint8_t res;
         __attribute__((aligned(32))) uint8_t local_c[32];
@@ -244,13 +245,24 @@ static inline uint8_t sum_uint8_avx2(__m256i accu) {
                 res ^= local_c[i];
         }
 
-        return res;     
+        return res;
+#else
+	uint32_t i;
+	uint8_t res;
+	uint64_t a = _mm256_extract_epi64(accu, 0) ^ _mm256_extract_epi64(accu, 1) ^ _mm256_extract_epi64(accu, 2) ^ _mm256_extract_epi64(accu, 3);
+	res = 0;
+	for(i = 0; i < 8; i++){
+		res ^= (a >> (8 * i)) & 0xff;
+	}
+	return res;
+#endif
 }
 
 static inline uint16_t sum_uint16_avx2(__m256i accu) {
+#if 0
         uint32_t i;
         uint16_t res;
-        __attribute__((aligned(32))) uint16_t local_c[16];
+        __attribute__((aligned(32))) uint16_t local_c[16]; 
         /* Store the result */
         _mm256_storeu_si256((__m256i*)local_c, accu);
         /* Finish the xor computation byte per uint16_t  */
@@ -259,7 +271,17 @@ static inline uint16_t sum_uint16_avx2(__m256i accu) {
                 res ^= local_c[i];
         }
 
-        return res;     
+        return res;
+#else
+        uint32_t i;
+        uint16_t res;
+        uint64_t a = _mm256_extract_epi64(accu, 0) ^ _mm256_extract_epi64(accu, 1) ^ _mm256_extract_epi64(accu, 2) ^ _mm256_extract_epi64(accu, 3);
+        res = 0;
+        for(i = 0; i < 4; i++){
+                res ^= (a >> (16 * i)) & 0xffff;
+        }
+        return res;
+#endif
 }    
 
 /*
@@ -307,10 +329,7 @@ static inline uint8_t gf2_vect_mult_avx2(const uint8_t *a, const uint8_t *b, uin
 /* XXX: TODO: this can be optimized by packing rows in zmm when n <= 256 */
 static inline void gf2_mat_mult_avx2(const uint8_t *A, const uint8_t *X, uint8_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-	(void)mtype;
-	GF2_MAT_MULT(A, X, Y, n, REG, gf2_vect_mult_avx2);
+	GF2_MAT_MULT(A, X, Y, n, mtype, gf2_vect_mult_avx2);
 }
 
 /* GF(2) matrix transposition */
@@ -419,10 +438,7 @@ static inline uint8_t gf256_vect_mult_avx2(const uint8_t *a, const uint8_t *b, u
  * */
 static inline void gf256_mat_mult_avx2(const uint8_t *A, const uint8_t *X, uint8_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-	(void)mtype;
-	GF256_MAT_MULT(A, X, Y, n, REG, gf256_vect_mult_avx2);
+	GF256_MAT_MULT(A, X, Y, n, mtype, gf256_vect_mult_avx2);
 }
 
 /*
@@ -431,7 +447,6 @@ static inline void gf256_mat_mult_avx2(const uint8_t *A, const uint8_t *X, uint8
 static inline uint8_t gf2_gf256_vect_mult_avx2(const uint8_t *a_gf2, const uint8_t *b_gf256, uint32_t len)
 {
         uint32_t i;
-        const __m256i zero = _mm256_setzero_si256();
 	__m256i _a, _b;
 
         /* Set the accumulator to 0 */
@@ -456,16 +471,14 @@ static inline uint8_t gf2_gf256_vect_mult_avx2(const uint8_t *a_gf2, const uint8
 							0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001,
 							0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001);
 
-		const __m256i xor_bitwise_not = _mm256_set_epi64x(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff);
-        	const __m256i msb      = _mm256_set_epi64x(0x8080808080808080, 0x8080808080808080, 0x8080808080808080, 0x8080808080808080);
 		/* Copy in the two lanes */
 		_a = _mm256_permute4x64_epi64(_a, 0b01000100);
 		/* Only keep the selection bits */
 		_a = _mm256_shuffle_epi8(_a, shuff_msk) & and_msk;
-		/* Transform these bits to either 0 or 0xFF and keep 0x80 */
-		_a = (_mm256_cmpeq_epi8(_a, zero) ^ xor_bitwise_not) & msb;
-		/* Use blending for bytes selection */
-                accu ^= _mm256_blendv_epi8(zero, _b, _a);
+		/* Transform these bits to either 0 or 0xFF */
+		_a = _mm256_cmpeq_epi8(_a, and_msk);
+		/* Bytes selection */
+                accu ^= (_a & _b);
         }
         return sum_uint8_avx2(accu);
 }
@@ -486,7 +499,6 @@ static inline void gf2_gf256_constant_vect_mult_avx2(uint8_t a_gf2, const uint8_
 static inline void gf256_gf2_constant_vect_mult_avx2(uint8_t a_gf256, const uint8_t *b_gf2, uint8_t *c_gf256, uint32_t len)
 {
 	uint32_t i;
-        const __m256i zero = _mm256_setzero_si256();
 	__m256i _a, _b;
 
         /* Broadcast the constant value */
@@ -511,16 +523,14 @@ static inline void gf256_gf2_constant_vect_mult_avx2(uint8_t a_gf256, const uint
 							0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001,
 							0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001);
 
-		const __m256i xor_bitwise_not = _mm256_set_epi64x(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff);
-        	const __m256i msb      = _mm256_set_epi64x(0x8080808080808080, 0x8080808080808080, 0x8080808080808080, 0x8080808080808080);
 		/* Copy in the two lanes */
 		_b = _mm256_permute4x64_epi64(_b, 0b01000100);
 		/* Only keep the selection bits */
 		_b = _mm256_shuffle_epi8(_b, shuff_msk) & and_msk;
-		/* Transform these bits to either 0 or 0xFF and keep 0x80 */
-		_b = (_mm256_cmpeq_epi8(_b, zero) ^ xor_bitwise_not) & msb;
-		/* Use blending for bytes selection */
-                __m256i _c = _mm256_blendv_epi8(zero, _a, _b);
+		/* Transform these bits to either 0 or 0xFF */
+		_b = _mm256_cmpeq_epi8(_b, and_msk);
+		/* Bytes selection */
+                __m256i _c = (_a & _b);
 		/* Store the result */
 		store_incomplete_m256(_c, &c_gf256[i], 8 * ceil_len);
         }
@@ -541,10 +551,9 @@ static inline uint8_t gf256_gf2_vect_mult_avx2(const uint8_t *a_gf256, const uin
  *  in a vector in GF(256)
  */                     
 static inline void gf2_gf256_mat_mult_avx2(const uint8_t *A, const uint8_t *X, uint8_t *Y, uint32_t n, matrix_type mtype)
-{                       
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype; 
+{
+        /* NOTE: XXX: we force a REG here as it allows for better performance */
+        (void)mtype;
         GF2_GF256_MAT_MULT(A, X, Y, n, REG, gf2_gf256_vect_mult_avx2);
 }
 
@@ -554,9 +563,8 @@ static inline void gf2_gf256_mat_mult_avx2(const uint8_t *A, const uint8_t *X, u
  */
 static inline void gf256_gf2_mat_mult_avx2(const uint8_t *A, const uint8_t *X, uint8_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype; 
+        /* NOTE: XXX: we force a REG here as it allows for better performance */
+        (void)mtype;
         GF256_GF2_MAT_MULT(A, X, Y, n, REG, gf256_gf2_vect_mult_avx2);
 }
 
@@ -663,10 +671,7 @@ static inline uint16_t gf256to2_vect_mult_avx2(const uint16_t *a, const uint16_t
  */
 static inline void gf256to2_mat_mult_avx2(const uint16_t *A, const uint16_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype;
-        GF256to2_MAT_MULT(A, X, Y, n, REG, gf256to2_vect_mult_avx2);
+        GF256to2_MAT_MULT(A, X, Y, n, mtype, gf256to2_vect_mult_avx2);
 }
 
 /*
@@ -685,7 +690,6 @@ static inline void gf2_gf256to2_constant_vect_mult_avx2(uint8_t a_gf2, const uin
 static inline void gf256to2_gf2_constant_vect_mult_avx2(uint16_t a_gf256to2, const uint8_t *b_gf2, uint16_t *c_gf256to2, uint32_t len)
 {
         uint32_t i;
-        const __m256i zero = _mm256_setzero_si256();
 	__m256i _a, _b;
 
         /* Broadcast the constant value */
@@ -710,16 +714,14 @@ static inline void gf256to2_gf2_constant_vect_mult_avx2(uint16_t a_gf256to2, con
 							0b10000000, 0b10000000, 0b01000000, 0b01000000, 0b00100000, 0b00100000, 0b00010000, 0b00010000,
 							0b00001000, 0b00001000, 0b00000100, 0b00000100, 0b00000010, 0b00000010, 0b00000001, 0b00000001);
 
-		const __m256i xor_bitwise_not = _mm256_set_epi64x(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff);
-        	const __m256i msb      = _mm256_set_epi64x(0x8080808080808080, 0x8080808080808080, 0x8080808080808080, 0x8080808080808080);
 		/* Only keep the selection bits */
 		_b = _mm256_permute4x64_epi64(_b, 0b01000100);
 		_b = _mm256_shuffle_epi8(_b, shuff_msk);
 		_b = _b & and_msk;
-		/* Transform these bits to either 0 or 0xFF and keep 0x80 */
-		_b = (_mm256_cmpeq_epi8(_b, zero) ^ xor_bitwise_not) & msb;
-		/* Use blending for bytes selection */
-                __m256i _c = _mm256_blendv_epi8(zero, _a, _b);
+		/* Transform these bits to either 0 or 0xFF */
+		_b = _mm256_cmpeq_epi8(_b, and_msk);
+		/* Bytes selection */
+                __m256i _c = (_a & _b);
 		/* Store the result */
 		store_incomplete_m256(_c, (uint8_t*)&c_gf256to2[i / 2], 16 * ceil_len);
         }
@@ -769,7 +771,6 @@ static inline void gf256to2_gf256_constant_vect_mult_avx2(uint16_t a_gf256to2, c
 static inline uint16_t gf2_gf256to2_vect_mult_avx2(const uint8_t *a_gf2, const uint16_t *b_gf256to2, uint32_t len)
 {
         uint32_t i;
-        const __m256i zero = _mm256_setzero_si256();
 	__m256i _a, _b;
 
         /* Set the accumulator to 0 */
@@ -793,17 +794,14 @@ static inline uint16_t gf2_gf256to2_vect_mult_avx2(const uint8_t *a_gf2, const u
 							0b00001000, 0b00001000, 0b00000100, 0b00000100, 0b00000010, 0b00000010, 0b00000001, 0b00000001,
 							0b10000000, 0b10000000, 0b01000000, 0b01000000, 0b00100000, 0b00100000, 0b00010000, 0b00010000,
 							0b00001000, 0b00001000, 0b00000100, 0b00000100, 0b00000010, 0b00000010, 0b00000001, 0b00000001);
-
-		const __m256i xor_bitwise_not = _mm256_set_epi64x(0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff);
-        	const __m256i msb      = _mm256_set_epi64x(0x8080808080808080, 0x8080808080808080, 0x8080808080808080, 0x8080808080808080);
 		/* Copy in the two lanes */
 		_a = _mm256_permute4x64_epi64(_a, 0b01000100);
 		/* Only keep the selection bits */
 		_a = _mm256_shuffle_epi8(_a, shuff_msk) & and_msk;
-		/* Transform these bits to either 0 or 0xFF and keep 0x80 */
-		_a = (_mm256_cmpeq_epi8(_a, zero) ^ xor_bitwise_not) & msb;
-		/* Use blending for bytes selection */
-                accu ^= _mm256_blendv_epi8(zero, _b, _a);
+		/* Transform these bits to either 0 or 0xFF */
+		_a = _mm256_cmpeq_epi8(_a, and_msk);
+		/* Bytes selection */
+                accu ^= (_a & _b);
         }
         return sum_uint16_avx2(accu);
 }
@@ -866,10 +864,7 @@ static inline uint16_t gf256to2_gf256_vect_mult_avx2(const uint16_t *a_gf256to2,
  */
 static inline void gf2_gf256to2_mat_mult_avx2(const uint8_t *A, const uint16_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype;
-        GF2_GF256to2_MAT_MULT(A, X, Y, n, REG, gf2_gf256to2_vect_mult_avx2);
+        GF2_GF256to2_MAT_MULT(A, X, Y, n, mtype, gf2_gf256to2_vect_mult_avx2);
 }
 
 /*
@@ -878,10 +873,7 @@ static inline void gf2_gf256to2_mat_mult_avx2(const uint8_t *A, const uint16_t *
  */
 static inline void gf256to2_gf2_mat_mult_avx2(const uint16_t *A, const uint8_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype;
-        GF256to2_GF2_MAT_MULT(A, X, Y, n, REG, gf256to2_gf2_vect_mult_avx2);
+        GF256to2_GF2_MAT_MULT(A, X, Y, n, mtype, gf256to2_gf2_vect_mult_avx2);
 }
 
 /*
@@ -890,10 +882,7 @@ static inline void gf256to2_gf2_mat_mult_avx2(const uint16_t *A, const uint8_t *
  */
 static inline void gf256_gf256to2_mat_mult_avx2(const uint8_t *A, const uint16_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype;
-        GF256to2_MAT_MULT(A, X, Y, n, REG, gf256_gf256to2_vect_mult_avx2);
+        GF256to2_MAT_MULT(A, X, Y, n, mtype, gf256_gf256to2_vect_mult_avx2);
 }
 
 /*
@@ -902,10 +891,7 @@ static inline void gf256_gf256to2_mat_mult_avx2(const uint8_t *A, const uint16_t
  */
 static inline void gf256to2_gf256_mat_mult_avx2(const uint16_t *A, const uint8_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype; 
-        GF256to2_MAT_MULT(A, X, Y, n, REG, gf256to2_gf256_vect_mult_avx2);
+        GF256to2_MAT_MULT(A, X, Y, n, mtype, gf256to2_gf256_vect_mult_avx2);
 }
 
 /* GF(256^2) matrix transposition */

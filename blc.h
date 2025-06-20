@@ -9,8 +9,14 @@
 #include "fields.h"
 
 typedef struct blc_key_t {
+#ifdef MEMORY_EFFICIENT_BLC
+    uint8_t salt[MQOM2_PARAM_SALT_SIZE];
+    uint8_t delta[MQOM2_PARAM_SEED_SIZE];
+    uint8_t rseed[MQOM2_PARAM_TAU][MQOM2_PARAM_SEED_SIZE];
+#else
     uint8_t node[MQOM2_PARAM_TAU][MQOM2_PARAM_FULL_TREE_SIZE + 1][MQOM2_PARAM_SEED_SIZE];
     uint8_t ls_com[MQOM2_PARAM_TAU][MQOM2_PARAM_NB_EVALS][MQOM2_PARAM_DIGEST_SIZE];
+#endif
     uint8_t partial_delta_x[MQOM2_PARAM_TAU][BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)-MQOM2_PARAM_SEED_SIZE];
 } blc_key_t;
 

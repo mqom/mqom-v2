@@ -320,3 +320,44 @@ int GGMTree_PartiallyExpand(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uin
 err:
 	return ret;
 }
+
+int GGMTree_ExpandPath(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t rseed[MQOM2_PARAM_SEED_SIZE], const uint8_t delta[MQOM2_PARAM_SEED_SIZE], uint32_t e, uint32_t i_star, uint8_t path[MQOM2_PARAM_NB_EVALS_LOG][MQOM2_PARAM_SEED_SIZE], uint8_t lseed[MQOM2_PARAM_SEED_SIZE])
+{
+	int ret = -1;
+	uint32_t j;
+	enc_ctx ctx;
+	uint8_t tweaked_salt[MQOM2_PARAM_SALT_SIZE];
+
+	/* Sanity check */
+	if(i_star >= MQOM2_PARAM_NB_EVALS){
+		ret = -1;
+		goto err;
+	}
+
+	uint32_t num_leaf = MQOM2_PARAM_NB_EVALS + i_star;
+
+	uint8_t node[2][MQOM2_PARAM_SEED_SIZE];
+	uint8_t parent[MQOM2_PARAM_SEED_SIZE];
+	memcpy(parent, delta, MQOM2_PARAM_SEED_SIZE);
+
+	for(j = 0; j < MQOM2_PARAM_NB_EVALS_LOG; j++){
+		if(j == 0) {
+			memcpy(node[0], rseed, MQOM2_PARAM_SEED_SIZE);
+		} else {
+			TweakSalt(salt, tweaked_salt, 2, e, j-1);
+			ret = enc_key_sched(&ctx, tweaked_salt); ERR(ret, err);
+			SeedDerive(&ctx, parent, node[0]);
+		}
+		xor_blocks(node[0], parent, node[1]);
+		
+		uint32_t bit = (num_leaf >> (MQOM2_PARAM_NB_EVALS_LOG-1-j)) & 0x01;
+		memcpy(path[MQOM2_PARAM_NB_EVALS_LOG-1-j], node[bit ^ 1], MQOM2_PARAM_SEED_SIZE);
+		memcpy(parent, node[bit], MQOM2_PARAM_SEED_SIZE);
+	}
+
+	memcpy(lseed, parent, MQOM2_PARAM_SEED_SIZE);
+
+	ret = 0;
+err:
+	return ret;
+}

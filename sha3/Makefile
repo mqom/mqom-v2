@@ -20,6 +20,13 @@ CFLAGS += -DNO_MISALIGNED_ACCESSES
 COMMON_SOURCES=KeccakHash.c KeccakSponge.c KeccakSpongetimes4.c KeccakHashtimes4.c 
 COMMON_OBJECTS=KeccakHash.o KeccakSponge.o KeccakSpongetimes4.o KeccakHashtimes4.o 
 
+ifeq ($(KECCAK_PLATFORM),avx512)
+	INCLUDE_PATHS=avx512
+	SPECIFIC_SOURCES=avx512/KeccakP-1600-AVX512.S avx512/KeccakP-1600-times4-SIMD512.c
+	SPECIFIC_OBJECTS=avx512/KeccakP-1600-AVX512.o avx512/KeccakP-1600-times4-SIMD512.o
+	PLATFORM=1
+	CFLAGS_PLATFORM += -mavx512vl -mavx512f
+endif
 ifeq ($(KECCAK_PLATFORM),avx2)
 	INCLUDE_PATHS=avx2
 	SPECIFIC_SOURCES=avx2/KeccakP-1600-AVX2.S avx2/KeccakP-1600-times4-SIMD256.c
@@ -42,11 +49,15 @@ endif
 
 # Use the sanitizers
 ifeq ($(USE_SANITIZERS),1)
-CFLAGS += -fsanitize=undefined -fsanitize=address -fsanitize=leak
+CFLAGS += -fsanitize=address -fsanitize=leak -fsanitize=undefined
   # XXX: NOTE: we must remove the signed integers overflows from the
   # sanitizers since we "abuse" them in the arithmetic library
   CFLAGS += -fno-sanitize=signed-integer-overflow
+  ifeq ($(USE_SANITIZERS_IGNORE_ALIGN),1)
+    CFLAGS += -fno-sanitize=alignment
+  endif
 endif
+
 ifeq ($(WERROR), 1)
   # Sometimes "-Werror" might be too much, we only use it when asked to
   CFLAGS += -Werror
@@ -59,7 +70,7 @@ SHA3LIB=libhash.a
 
 %.o : %.c
 ifneq ($(PLATFORM),1)
-	$(error "Sorry: no platform specified ... Please select KECCAK_PLATFORM=avx2, or opt64, or plain32")
+	$(error "Sorry: no platform specified ... Please select KECCAK_PLATFORM=avx512, or avx2, or opt64, or plain32")
 endif
 	$(CC) $(CFLAGS) -c -I. $(HEADERS_INCLUDE) $< -o $@
 

@@ -3,14 +3,25 @@
 
 #include "rijndael_platform.h"
 
-#if defined(RIJNDAEL_CONSTANT_TIME_REF) && defined(RIJNDAEL_TABLE)
-#error "RIJNDAEL_CONSTANT_TIME_REF, RIJNDAEL_TABLE and RIJNDAEL_AES_NI are exclusive!"
+#if defined(RIJNDAEL_CONSTANT_TIME_REF)
+#if defined(RIJNDAEL_AES_NI) || defined(RIJNDAEL_BITSLICE) || defined(RIJNDAEL_TABLE)
+#error "RIJNDAEL_CONSTANT_TIME_REF, RIJNDAEL_TABLE, RIJNDAEL_BITSLICE and RIJNDAEL_AES_NI are exclusive!"
 #endif
-#if defined(RIJNDAEL_CONSTANT_TIME_REF) && defined(RIJNDAEL_AES_NI)
-#error "RIJNDAEL_CONSTANT_TIME_REF, RIJNDAEL_TABLE and RIJNDAEL_AES_NI are exclusive!"
 #endif
-#if defined(RIJNDAEL_TABLE) && defined(RIJNDAEL_AES_NI)
-#error "RIJNDAEL_CONSTANT_TIME_REF, RIJNDAEL_TABLE and RIJNDAEL_AES_NI are exclusive!"
+#if defined(RIJNDAEL_AES_NI)
+#if defined(RIJNDAEL_CONSTANT_TIME_REF) || defined(RIJNDAEL_BITSLICE) || defined(RIJNDAEL_TABLE)
+#error "RIJNDAEL_CONSTANT_TIME_REF, RIJNDAEL_TABLE, RIJNDAEL_BITSLICE and RIJNDAEL_AES_NI are exclusive!"
+#endif
+#endif
+#if defined(RIJNDAEL_BITSLICE)
+#if defined(RIJNDAEL_AES_NI) || defined(RIJNDAEL_CONSTANT_TIME_REF) || defined(RIJNDAEL_TABLE)
+#error "RIJNDAEL_CONSTANT_TIME_REF, RIJNDAEL_TABLE, RIJNDAEL_BITSLICE and RIJNDAEL_AES_NI are exclusive!"
+#endif
+#endif
+#if defined(RIJNDAEL_TABLE)
+#if defined(RIJNDAEL_AES_NI) || defined(RIJNDAEL_BITSLICE) || defined(RIJNDAEL_CONSTANT_TIME_REF)
+#error "RIJNDAEL_CONSTANT_TIME_REF, RIJNDAEL_TABLE, RIJNDAEL_BITSLICE and RIJNDAEL_AES_NI are exclusive!"
+#endif
 #endif
 
 /* === Constant time ref case */
@@ -29,6 +40,26 @@
 #define aes256_enc_x4 aes256_ref_enc_x4
 #define rijndael256_enc_x2 rijndael256_ref_enc_x2
 #define rijndael256_enc_x4 rijndael256_ref_enc_x4
+static const char rijndael_conf[] = "Rijndael ref (constant time, slow)";
+#endif
+
+/* === Constant time bitslice case */
+#if defined(RIJNDAEL_BITSLICE)
+#include "rijndael_ct64.h"
+#define rijndael_ctx rijndael_ct64_ctx
+#define aes128_setkey_enc aes128_ct64_setkey_enc
+#define aes256_setkey_enc aes256_ct64_setkey_enc
+#define rijndael256_setkey_enc rijndael256_ct64_setkey_enc
+#define aes128_enc aes128_ct64_enc
+#define aes256_enc aes256_ct64_enc
+#define rijndael256_enc rijndael256_ct64_enc
+#define aes128_enc_x2 aes128_ct64_enc_x2
+#define aes128_enc_x4 aes128_ct64_enc_x4
+#define aes256_enc_x2 aes256_ct64_enc_x2
+#define aes256_enc_x4 aes256_ct64_enc_x4
+#define rijndael256_enc_x2 rijndael256_ct64_enc_x2
+#define rijndael256_enc_x4 rijndael256_ct64_enc_x4
+static const char rijndael_conf[] = "Rijndael bitslice (constant time)";
 #endif
 
 /* === Non-constant time table case */
@@ -47,9 +78,10 @@
 #define aes256_enc_x4 aes256_table_enc_x4
 #define rijndael256_enc_x2 rijndael256_table_enc_x2
 #define rijndael256_enc_x4 rijndael256_table_enc_x4
+static const char rijndael_conf[] = "Rijndael table (NON constant time)";
 #endif
 
-/* === Constant time ref case */
+/* === Constant time AES-NI case (supposes AES-NI x86 support) */
 #if defined(RIJNDAEL_AES_NI)
 #include "rijndael_aes_ni.h"
 #define rijndael_ctx rijndael_aes_ni_ctx
@@ -65,6 +97,7 @@
 #define aes256_enc_x4 aes256_aes_ni_enc_x4
 #define rijndael256_enc_x2 rijndael256_aes_ni_enc_x2
 #define rijndael256_enc_x4 rijndael256_aes_ni_enc_x4
+static const char rijndael_conf[] = "Rijndael AES-NI (constant time, x86 dedicated)";
 #endif
 
 /* ==== Public API ==== */

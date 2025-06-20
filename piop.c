@@ -20,14 +20,14 @@ static inline void compute_t1(const field_base_elt A[MQOM2_PARAM_MQ_M][MQOM2_PAR
 }
 
 int ComputePz(const field_ext_elt x0_e[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt A[MQOM2_PARAM_MQ_M][MQOM2_PARAM_MQ_N][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt b[MQOM2_PARAM_MQ_M][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], field_ext_elt z0[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)], field_ext_elt z1[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)], piop_cache *cache) {
-	int ret = -1;
+    int ret = -1;
     uint32_t i;
 
     field_ext_elt t0[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)];
     field_base_elt t1[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)];
     field_ext_elt z_0i, z_1i;
 
-	for(i = 0; i < MQOM2_PARAM_MQ_M; i++) {
+    for(i = 0; i < MQOM2_PARAM_MQ_M; i++) {
         /* Compute P_t(X) = t_0 + t_1 X = A_i P_x(X) + b_i X */
         __BENCHMARK_START__(BS_PIOP_MAT_MUL_EXT);
         field_base_ext_mat_mult((field_base_elt*)A[i], x0_e, t0, MQOM2_PARAM_MQ_N, TRI_INF);
@@ -39,18 +39,20 @@ int ComputePz(const field_ext_elt x0_e[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], con
         /* Compute P_{z,i}(X) = z_{0,i} + z_{1,i} X = P_t(X)^T P_x(X) - y_i X^2 */
         __BENCHMARK_START__(BS_PIOP_COMPUTE_PZI);
         z_0i = field_ext_vect_mult(t0, x0_e, MQOM2_PARAM_MQ_N);
-        z_1i = field_ext_base_vect_mult(t0, x, MQOM2_PARAM_MQ_N) ^ field_base_ext_vect_mult(t1, x0_e, MQOM2_PARAM_MQ_N);
+	field_ext_elt t0_x = field_base_ext_vect_mult(t1, x0_e, MQOM2_PARAM_MQ_N); /* t0^T x */
+	field_ext_elt t0_x0 = field_ext_base_vect_mult(t0, x, MQOM2_PARAM_MQ_N);   /* t1^T x0[e] */
+        field_ext_vect_add(&t0_x, &t0_x0, &z_1i, 1);
         field_ext_vect_pack(z_0i, z0, i);
         field_ext_vect_pack(z_1i, z1, i);
         __BENCHMARK_STOP__(BS_PIOP_COMPUTE_PZI);
     }
 
-	ret = 0;
-	return ret;
+    ret = 0;
+    return ret;
 }
 
 int ComputePzEval(field_ext_elt r, const field_ext_elt v_x[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt A[MQOM2_PARAM_MQ_M][MQOM2_PARAM_MQ_N][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt b[MQOM2_PARAM_MQ_M][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt y[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_M)], field_ext_elt v_z[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)]) {
-	int ret = -1;
+    int ret = -1;
     uint32_t i;
 
     field_ext_elt v_t[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)];
@@ -61,7 +63,7 @@ int ComputePzEval(field_ext_elt r, const field_ext_elt v_x[FIELD_EXT_PACKING(MQO
     field_ext_elt y_r2[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)];
     field_ext_base_constant_vect_mult(r2, y, y_r2, MQOM2_PARAM_MQ_M);
 
-	for(i = 0; i < MQOM2_PARAM_MQ_M; i++) {
+    for(i = 0; i < MQOM2_PARAM_MQ_M; i++) {
         /* Compute v_t = P_t(r) = A_i P_x(r) + b_i r */
         field_base_ext_mat_mult((field_base_elt*)A[i], v_x, tmp, MQOM2_PARAM_MQ_N, TRI_INF);
         field_ext_base_constant_vect_mult(r, b[i], v_t, MQOM2_PARAM_MQ_N);
@@ -73,23 +75,23 @@ int ComputePzEval(field_ext_elt r, const field_ext_elt v_x[FIELD_EXT_PACKING(MQO
     }
     field_ext_vect_add(v_z, y_r2, v_z, MQOM2_PARAM_MQ_M);
 
-	ret = 0;
-	return ret;	
+    ret = 0;
+    return ret;
 }
 
-void phi(const field_ext_elt in[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)], field_ext_elt out[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)])
+static inline void phi(const field_ext_elt in[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)], field_ext_elt out[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)])
 {
     uint32_t i;
     field_ext_elt out_i;
     for(i = 0; i<MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU; i++) {
         out_i = field_ext_vect_mult(&in[i*FIELD_EXT_PACKING(MQOM2_PARAM_MU)], ext_basis, MQOM2_PARAM_MU);
-		field_ext_vect_pack(out_i, out, i); 
+	field_ext_vect_pack(out_i, out, i); 
     }
 }
 
 int ComputePAlpha(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const field_ext_elt x0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], const field_ext_elt u0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)], const field_ext_elt u1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)], const field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt A[MQOM2_PARAM_MQ_M][MQOM2_PARAM_MQ_N][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt b[MQOM2_PARAM_MQ_M][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], field_ext_elt alpha0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)], field_ext_elt alpha1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)])
 {
-	int ret = -1;
+    int ret = -1;
     uint32_t e;
 
     /* Initialize the PIOP cache for t1 */
@@ -98,15 +100,16 @@ int ComputePAlpha(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const field_ext_el
     __BENCHMARK_START__(BS_PIOP_EXPAND_BATCHING_MAT);
 #if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
     uint32_t i;
-	xof_context xof_ctx;
+    xof_context xof_ctx;
     field_ext_elt Gamma[MQOM2_PARAM_ETA][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)];
     uint8_t stream[MQOM2_PARAM_ETA*BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)];
     ret = xof_init(&xof_ctx); ERR(ret, err);
-	ret = xof_update(&xof_ctx, (const uint8_t*) "\x08", 1); ERR(ret, err);
-	ret = xof_update(&xof_ctx, com, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+    ret = xof_update(&xof_ctx, (const uint8_t*) "\x08", 1); ERR(ret, err);
+    ret = xof_update(&xof_ctx, com, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
     ret = xof_squeeze(&xof_ctx, stream, MQOM2_PARAM_ETA*BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU));
-    for(i=0; i<MQOM2_PARAM_ETA; i++)
+    for(i=0; i<MQOM2_PARAM_ETA; i++){
         field_ext_parse(&stream[i*BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)], MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU, Gamma[i]);
+    }
 
     field_ext_elt compressed_z[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)];
 #else
@@ -115,7 +118,7 @@ int ComputePAlpha(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const field_ext_el
     __BENCHMARK_STOP__(BS_PIOP_EXPAND_BATCHING_MAT);
 
     field_ext_elt z0[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)], z1[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)];
-	for(e = 0; e < MQOM2_PARAM_TAU; e++) {
+    for(e = 0; e < MQOM2_PARAM_TAU; e++) {
         ret = ComputePz(x0[e], x, A, b, z0, z1, t1_cache); ERR(ret, err);
         __BENCHMARK_START__(BS_PIOP_BATCH);
 #if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
@@ -144,28 +147,29 @@ int ComputePAlpha(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const field_ext_el
         __BENCHMARK_STOP__(BS_PIOP_ADD_MASKS);
     }
 
-	ret = 0;
+    ret = 0;
 err:
-	destroy_piop_cache(t1_cache);
-	return ret;
+    destroy_piop_cache(t1_cache);
+    return ret;
 }
 
 int RecomputePAlpha(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const field_ext_elt alpha1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)], const uint16_t i_star[MQOM2_PARAM_TAU], const field_ext_elt x_eval[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], const field_ext_elt u_eval[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)], const field_base_elt A[MQOM2_PARAM_MQ_M][MQOM2_PARAM_MQ_N][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt b[MQOM2_PARAM_MQ_M][FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt y[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_M)], field_ext_elt alpha0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)])
 {
-	int ret = -1;
+    int ret = -1;
     uint32_t e;
 
 #if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
     uint32_t i;
-	xof_context xof_ctx;
+    xof_context xof_ctx;
     field_ext_elt Gamma[MQOM2_PARAM_ETA][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)];
     uint8_t stream[MQOM2_PARAM_ETA*BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)];
     ret = xof_init(&xof_ctx); ERR(ret, err);
-	ret = xof_update(&xof_ctx, (const uint8_t*) "\x08", 1); ERR(ret, err);
-	ret = xof_update(&xof_ctx, com, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+    ret = xof_update(&xof_ctx, (const uint8_t*) "\x08", 1); ERR(ret, err);
+    ret = xof_update(&xof_ctx, com, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
     ret = xof_squeeze(&xof_ctx, stream, MQOM2_PARAM_ETA*BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU));
-    for(i=0; i<MQOM2_PARAM_ETA; i++)
+    for(i=0; i<MQOM2_PARAM_ETA; i++){
         field_ext_parse(&stream[i*BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)], MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU, Gamma[i]);
+    }
 
     field_ext_elt compressed_v_z[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)];
 #else
@@ -174,7 +178,7 @@ int RecomputePAlpha(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const field_ext_
 
     field_ext_elt v_z[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M)];
     field_ext_elt v_alpha[FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
-	for(e = 0; e < MQOM2_PARAM_TAU; e++) {
+    for(e = 0; e < MQOM2_PARAM_TAU; e++) {
         field_ext_elt r = get_evaluation_point(i_star[e]);
         ret = ComputePzEval(r, x_eval[e], A, b, y, v_z); ERR(ret, err);
 #if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
@@ -193,8 +197,8 @@ int RecomputePAlpha(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const field_ext_
         field_ext_vect_add(v_alpha, alpha0[e], alpha0[e], MQOM2_PARAM_ETA);
     }
 
-	ret = 0;
+    ret = 0;
 err:
-	return ret;	
+    return ret;
 }
 

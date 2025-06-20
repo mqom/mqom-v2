@@ -39,7 +39,11 @@ python3 manage.py env <scheme>
 where `<scheme>` is an existing instance (in the format `<category>_<base-field>_<trade-off>_<variant>`).
 
 Moreover, you can set environment variable to compile some optimizations:
- * *Rjindael implementation*: `RJINDAEL_TABLE=1` selects a table-based optimized (non-constant time) implementation, while `RIJNDAEL_AES_NI=1` selects a constant-time implementation optimized using the AES-NI instruction set. By default, it uses a (slow) reference constant time implementation.
+ * *Rjindael implementation*: `RJINDAEL_TABLE=1` selects a table-based optimized (non-constant time) implementation, while `RIJNDAEL_AES_NI=1` selects a constant-time implementation optimized using the AES-NI instruction set. By default, it uses the portable Rijndael bitslice implementation (adapted from [BearSSL](https://bearssl.org/constanttime.html)), a bit slower than the table-based one (but constant time), corresponding to `RIJNDAEL_BITSLICE=1`. Another implementation is also available using `RIJNDAEL_CONSTANT_TIME_REF=1`: it is here mostly for a readable reference constant time implementation, but it is very slow and hence should be avoided.
  * *Field implementation*: `FIELDS_REF=1` selects a reference constant-time implementation, `FIELD_AVX2=1` selects an optimized implementation using AVX2 instruction set and `FIELD_GFNI=1` selects an optimized implementation using GFNI instruction set. By default, it select the faster implementation for the current platform.
  * *Keccak implementation*: `KECCAK_AVX2=1` select a Keccak implementation optimized using the AVX2 instruction set. By default, it uses a 64-bit optimized implementation.
+ * *XOF*: `USE_XOF_X4=1` (this is the default) activates the usage of x4 XOF implementations, while `USE_XOF_X4=0` deactivates it.
+ * *PRG and PIOP caches*: `USE_PRG_CACHE=1` and `USE_PIOP_CACHE=1` (default when compiling) activate the caches usage for PRG and PIOP, which significantly accelerate the computations at the expense of more memory usage. To save memory, these can be
+explicitly deactivated with `USE_PRG_CACHE=0` and `USE_PIOP_CACHE=0`.
+ * *Memory efficient BLC*: `MEMORY_EFFICIENT_BLC=1` (default is 0, deactivated) activates saving memory for BLC trees computations at the expense of slightly more cycles as these are recomputed.
 

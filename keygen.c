@@ -19,7 +19,15 @@ int KeyGen(const uint8_t seed_key[2 * MQOM2_PARAM_SEED_SIZE], uint8_t sk[MQOM2_S
 	field_base_elt *_A = NULL;
 	field_base_elt *_b = NULL;
 	_A = (field_base_elt*)malloc(MQOM2_PARAM_MQ_M * MQOM2_PARAM_MQ_N * FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N) * sizeof(field_base_elt));
+	if(_A == NULL){
+		ret = -1;
+		goto err;
+	}
 	_b = (field_base_elt*)malloc(MQOM2_PARAM_MQ_M * FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N) * sizeof(field_base_elt));
+	if(_b == NULL){
+		ret = -1;
+		goto err;
+	}
 	MatrixSetMQ A = (MatrixSetMQ)_A;
 	VectorSetMQ b = (VectorSetMQ)_b;
 

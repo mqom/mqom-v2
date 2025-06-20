@@ -206,12 +206,15 @@ static inline void _field_ext_basis_dummy(void)
 
 #if defined(FIELDS_REF)
 #include "fields_ref.h"
+static const char fields_conf[] = "Fields ref implementation (pure C)";
 #define FIELD_IMPLEMENTATION_SUFFIX ref
 #elif defined(FIELDS_AVX2)
 #include "fields_avx2.h"
+static const char fields_conf[] = "Fields AVX2 implementation";
 #define FIELD_IMPLEMENTATION_SUFFIX avx2
 #elif defined(FIELDS_GFNI)
 #include "fields_gfni.h"
+static const char fields_conf[] = "Fields AVX512/GFNI implementation";
 #define FIELD_IMPLEMENTATION_SUFFIX gfni
 #else
   #error "Error: no low-level field implementation detected ..."

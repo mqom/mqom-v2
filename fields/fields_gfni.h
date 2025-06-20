@@ -144,10 +144,7 @@ static inline uint8_t gf2_vect_mult_gfni(const uint8_t *a, const uint8_t *b, uin
 /* XXX: TODO: this can be optimized by packing rows in zmm when n <= 256 */
 static inline void gf2_mat_mult_gfni(const uint8_t *A, const uint8_t *X, uint8_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-	(void)mtype;
-	GF2_MAT_MULT(A, X, Y, n, REG, gf2_vect_mult_gfni);
+	GF2_MAT_MULT(A, X, Y, n, mtype, gf2_vect_mult_gfni);
 }
 
 /* GF(2) matrix transposition */
@@ -232,10 +229,7 @@ static inline uint8_t gf256_vect_mult_gfni(const uint8_t *a, const uint8_t *b, u
  * */
 static inline void gf256_mat_mult_gfni(const uint8_t *A, const uint8_t *X, uint8_t *Y, uint32_t n, matrix_type mtype)
 {
-	/* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-	 * than using the trianglar shape ... */
-	(void)mtype;
-	GF256_MAT_MULT(A, X, Y, n, REG, gf256_vect_mult_gfni);
+	GF256_MAT_MULT(A, X, Y, n, mtype, gf256_vect_mult_gfni);
 }
 
 
@@ -264,7 +258,8 @@ static inline void gf256_gf2_constant_vect_mult_gfni(uint8_t a_gf256, const uint
         for(i = 0; i < n; i += 64){
                 /* We use a mask load depending on the mask value in b_gf2 */
                 uint32_t len = (n - i) < 64 ? (n - i) : 64;
-                __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << (len / 8)) - 1, &b_gf2[(i / 8)]);
+		uint32_t ceil_len_bits = (len + 7) / 8;
+                __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << ceil_len_bits) - 1, &b_gf2[(i / 8)]);
                 /* Transfer to our 64 bits mask */
                 __mmask64 mask = (__mmask64)_mm_movepi64_pi64(mask_128);
 		__m512i _c = _mm512_mask_mov_epi8(zero, mask, _a);
@@ -289,7 +284,8 @@ static inline uint8_t gf2_gf256_vect_mult_gfni(const uint8_t *a_gf2, const uint8
         for(i = 0; i < n; i += 64){
                 /* We use a mask load depending on the mask value in a_gf2 */
                 uint32_t len = (n - i) < 64 ? (n - i) : 64;
-                __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << (len / 8)) - 1, &a_gf2[(i / 8)]);
+		uint32_t ceil_len_bits = (len + 7) / 8;
+                __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << ceil_len_bits) - 1, &a_gf2[(i / 8)]);
                 /* Transfer to our 64 bits mask */
                 __mmask64 mask = (__mmask64)_mm_movepi64_pi64(mask_128);
                 accu ^= _mm512_mask_loadu_epi8(zero, mask, (int const*)&b_gf256[i]);
@@ -312,10 +308,7 @@ static inline uint8_t gf256_gf2_vect_mult_gfni(const uint8_t *a_gf256, const uin
  */
 static inline void gf2_gf256_mat_mult_gfni(const uint8_t *A, const uint8_t *X, uint8_t *Y, uint32_t n, matrix_type mtype)
 {
-	/* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-	 * than using the trianglar shape ... */
-	(void)mtype;
-        GF2_GF256_MAT_MULT(A, X, Y, n, REG, gf2_gf256_vect_mult_gfni);
+        GF2_GF256_MAT_MULT(A, X, Y, n, mtype, gf2_gf256_vect_mult_gfni);
 }
 
 /*
@@ -324,10 +317,7 @@ static inline void gf2_gf256_mat_mult_gfni(const uint8_t *A, const uint8_t *X, u
  */
 static inline void gf256_gf2_mat_mult_gfni(const uint8_t *A, const uint8_t *X, uint8_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype;
-        GF256_GF2_MAT_MULT(A, X, Y, n, REG, gf256_gf2_vect_mult_gfni);
+        GF256_GF2_MAT_MULT(A, X, Y, n, mtype, gf256_gf2_vect_mult_gfni);
 }
 
 /* GF(256) matrix transposition */
@@ -462,7 +452,8 @@ static inline void gf256to2_gf2_constant_vect_mult_gfni(uint16_t a_gf256to2, con
         for(i = 0; i < n; i += 32){
                 /* We use a mask load depending on the mask value in b_gf2 */
                 uint32_t len = (n - i) < 32 ? (n - i) : 32;
-                __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << (len / 8)) - 1, &b_gf2[(i / 8)]);
+		uint32_t ceil_len_bits = (len + 7) / 8;
+                __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << ceil_len_bits) - 1, &b_gf2[(i / 8)]);
                 /* Transfer to our 64 bits mask */
                 __mmask64 mask64 = (__mmask64)_mm_movepi64_pi64(mask_128);
 		__mmask32 mask = (__mmask32)mask64;
@@ -524,8 +515,9 @@ static inline uint16_t gf2_gf256to2_vect_mult_gfni(const uint8_t *a_gf2, const u
         for(i = 0; i < n; i += 32){
                 /* We use a mask load depending on the mask value in a_gf2 */
                 uint32_t len = (n - i) < 32 ? (n - i) : 32;
+		uint32_t ceil_len_bits = (len + 7) / 8;
 		/* Load 32 bits max */
-                __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << (len / 8)) - 1, &a_gf2[(i / 8)]);
+                __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << ceil_len_bits) - 1, &a_gf2[(i / 8)]);
                 /* Transfer to our 32 bits mask */
                 __mmask64 mask64 = (__mmask64)_mm_movepi64_pi64(mask_128);
 		__mmask32 mask = (__mmask32)mask64;
@@ -594,10 +586,7 @@ static inline uint16_t gf256to2_gf256_vect_mult_gfni(const uint16_t *a_gf256to2,
  */
 static inline void gf2_gf256to2_mat_mult_gfni(const uint8_t *A, const uint16_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype;
-        GF2_GF256to2_MAT_MULT(A, X, Y, n, REG, gf2_gf256to2_vect_mult_gfni);
+        GF2_GF256to2_MAT_MULT(A, X, Y, n, mtype, gf2_gf256to2_vect_mult_gfni);
 }
 
 /*
@@ -606,10 +595,7 @@ static inline void gf2_gf256to2_mat_mult_gfni(const uint8_t *A, const uint16_t *
  */
 static inline void gf256to2_gf2_mat_mult_gfni(const uint16_t *A, const uint8_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype;
-        GF256to2_GF2_MAT_MULT(A, X, Y, n, REG, gf256to2_gf2_vect_mult_gfni);
+        GF256to2_GF2_MAT_MULT(A, X, Y, n, mtype, gf256to2_gf2_vect_mult_gfni);
 }
 
 /*
@@ -617,10 +603,7 @@ static inline void gf256to2_gf2_mat_mult_gfni(const uint16_t *A, const uint8_t *
  */
 static inline void gf256to2_mat_mult_gfni(const uint16_t *A, const uint16_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
 {
-	/* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-	 * than using the trianglar shape ... */
-	(void)mtype;
-        GF256to2_MAT_MULT(A, X, Y, n, REG, gf256to2_vect_mult_gfni);
+        GF256to2_MAT_MULT(A, X, Y, n, mtype, gf256to2_vect_mult_gfni);
 }
 
 
@@ -630,10 +613,7 @@ static inline void gf256to2_mat_mult_gfni(const uint16_t *A, const uint16_t *X, 
  */
 static inline void gf256_gf256to2_mat_mult_gfni(const uint8_t *A, const uint16_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
 {
-	/* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-	 * than using the trianglar shape ... */
-	(void)mtype;
-        GF256to2_MAT_MULT(A, X, Y, n, REG, gf256_gf256to2_vect_mult_gfni);
+        GF256to2_MAT_MULT(A, X, Y, n, mtype, gf256_gf256to2_vect_mult_gfni);
 }
 
 /*
@@ -642,10 +622,7 @@ static inline void gf256_gf256to2_mat_mult_gfni(const uint8_t *A, const uint16_t
  */
 static inline void gf256to2_gf256_mat_mult_gfni(const uint16_t *A, const uint8_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
 {
-        /* XXX: NOTE: because of alignment and loading latencies, treating the matrix as "regular" seems always better
-         * than using the trianglar shape ... */
-        (void)mtype;
-        GF256to2_MAT_MULT(A, X, Y, n, REG, gf256to2_gf256_vect_mult_gfni);
+        GF256to2_MAT_MULT(A, X, Y, n, mtype, gf256to2_gf256_vect_mult_gfni);
 }
 
 /* GF(256^2) matrix transposition */

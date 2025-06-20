@@ -28,8 +28,9 @@ parser_compile = subparsers.add_parser('compile', help='compile scheme')
 parser_compile.add_argument('schemes', nargs='+', choices=choices_scheme_sets, help='schemes to compile')
 parser_compile.add_argument('--no-kat', action='store_true', dest='b_no_kat', help='Avoid compiling the "kat_gen" and "kat_check" executables')
 parser_compile.add_argument('--no-bench', action='store_true', dest='b_no_bench', help='Avoid compiling the "bench" executable')
-parser_compile.add_argument('--verbose', action='store_true', dest='b_verbose_compilation', help='Activate verbose compilation')
+parser_compile.add_argument('--verbose', action='store_true', dest='b_verbose', help='Activate verbose compilation')
 parser_compile.add_argument('-p', '--parallel-jobs', dest='parallel_jobs', type=int, default=0, help='Number of parallel jobs (-1 means max, 0 means monojob)')
+parser_compile.add_argument('-o', '--only-print', action='store_true', dest='b_compile_only_print', help='Do not compile, only print the compilation invocation to be used')
 
 parser_set = subparsers.add_parser('env', help='get environment variables')
 parser_set.add_argument('scheme', choices=choices_schemes, help='scheme to get')
@@ -40,6 +41,8 @@ parser_bench = subparsers.add_parser('bench', help='bench')
 parser_bench.add_argument('schemes', nargs='+', choices=choices_scheme_sets, help='schemes to benchmark')
 parser_bench.add_argument('-n', '--nb-repetitions', dest='nb_repetitions', type=int, default=100, help='Number of repetitions')
 parser_bench.add_argument('-p', '--parallel-jobs', dest='parallel_jobs', type=int, default=0, help='Number of parallel jobs (-1 means max, 0 means monojob)')
+parser_bench.add_argument('--verbose', action='store_true', dest='b_verbose', help='Activate verbose benchmarks')
+parser_bench.add_argument('--memory', action='store_true', dest='b_bench_memory', help='Bench also memory usage')
 
 parser_test = subparsers.add_parser('test', help='test')
 parser_test.add_argument('schemes', nargs='+', choices=choices_scheme_sets, help='schemes to test')
@@ -48,6 +51,7 @@ parser_test.add_argument('-c', '--compare-kat', dest='compare_kat', default=None
 parser_test.add_argument('--no-kat-check', action='store_true', dest='b_no_kat_check', help='Avoid executing the KAT check (only the gen is executed)')
 parser_test.add_argument('--no-valgrind', action='store_true', dest='b_no_valgrind', help='Avoid using valgrind')
 parser_test.add_argument('-p', '--parallel-jobs', dest='parallel_jobs', type=int, default=0, help='Number of parallel jobs (-1 means max, 0 means monojob)')
+parser_test.add_argument('--verbose', action='store_true', dest='b_verbose', help='Activate verbose tests')
 
 arguments = parser.parse_args()
 
@@ -98,25 +102,75 @@ class MQOMInstance:
         extra_cflags = self.compilation_prefix['EXTRA_CFLAGS']
         prefix_exec = self.get_label()
         dst_path = self.dst_path
-        return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench', folder, shell=True)
+        if arguments.b_compile_only_print:
+            print("=== Compilation (bench) of %s" % prefix_exec)
+            print(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench')
+            return "",""
+        else:
+            return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench', folder, shell=True)
+
+    def compile_bench_mem_keygen(self, folder):
+        extra_cflags = self.compilation_prefix['EXTRA_CFLAGS']
+        prefix_exec = self.get_label()
+        dst_path = self.dst_path
+        if arguments.b_compile_only_print:
+            print("=== Compilation (bench write) of %s" % prefix_exec)
+            print(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench_mem_keygen')
+            return "",""
+        else:
+            return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench_mem_keygen', folder, shell=True)
+        
+    def compile_bench_mem_sign(self, folder):
+        extra_cflags = self.compilation_prefix['EXTRA_CFLAGS']
+        prefix_exec = self.get_label()
+        dst_path = self.dst_path
+        if arguments.b_compile_only_print:
+            print("=== Compilation (bench write) of %s" % prefix_exec)
+            print(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench_mem_sign')
+            return "",""
+        else:
+            return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench_mem_sign', folder, shell=True)
+
+    def compile_bench_mem_open(self, folder):
+        extra_cflags = self.compilation_prefix['EXTRA_CFLAGS']
+        prefix_exec = self.get_label()
+        dst_path = self.dst_path
+        if arguments.b_compile_only_print:
+            print("=== Compilation (bench read) of %s" % prefix_exec)
+            print(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench_mem_open')
+            return "",""
+        else:
+            return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make bench_mem_open', folder, shell=True)
 
     def compile_kat_gen(self, folder):
         extra_cflags = self.compilation_prefix['EXTRA_CFLAGS']
         prefix_exec = self.get_label()
         dst_path = self.dst_path
-        return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make kat_gen', folder, shell=True)
+        if arguments.b_compile_only_print:
+            print("=== Compilation (kat gen) of %s" % prefix_exec)
+            print(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make kat_gen')
+            return "",""
+        else:
+            return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make kat_gen', folder, shell=True)
 
     def compile_kat_check(self, folder):
         extra_cflags = self.compilation_prefix['EXTRA_CFLAGS']
         prefix_exec = self.get_label()
         dst_path = self.dst_path
-        return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make kat_check', folder, shell=True)
+        if arguments.b_compile_only_print:
+            print("=== Compilation (kat check) of %s" % prefix_exec)
+            print(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make kat_check')
+            return "",""
+        else:
+            return run_command(f'EXTRA_CFLAGS="{extra_cflags}" DESTINATION_PATH="{dst_path}" PREFIX_EXEC="{prefix_exec}" make kat_check', folder, shell=True)
 
     def run_bench(self, nb_experiments):
         scheme_label = self.get_label()
         dst_path = self.dst_path
         stdout, stderr = run_command(f'{dst_path}/{scheme_label}_bench {nb_experiments}', cwd=CWD)
         assert (not stderr), stderr
+        if arguments.b_verbose:
+            print(stdout)
 
         # check that the score is maximal
         data = {
@@ -184,6 +238,56 @@ class MQOMInstance:
                 data['detailed_' + 'blc_open_' + d] = (float(get_info(stdout, r'.*- %s: (.+) cycles\)' % blc_open_dict[d]).split("ms")[0]), float(get_info(stdout, r'.*- %s: (.+) cycles\)' % blc_open_dict[d]).split("(")[1])) 
         except ValueError:
             pass
+        if arguments.b_verbose:
+            print(data)
+        return data
+    
+    def run_bench_memory(self):
+        import re
+        scheme_label = self.get_label()
+        dst_path = self.dst_path
+        data = {}
+        for cmd, algo_label in [('keygen', 'Key Generation'), ('sign', 'Signing'), ('open', 'Verification')]:
+            _, stderr = run_command(f'valgrind --max-stackframe=10000000 --tool=massif --stacks=yes --log-file=massif.read.log --massif-out-file=massif.read.out {dst_path}/{scheme_label}_bench_mem_{cmd}', cwd=CWD)
+            assert (not stderr), stderr
+            stats = None
+            with open('massif.read.out') as _file:
+                stats = _file.readlines()
+            current_snapshot = None
+            snapshots = []
+            reg_title = re.compile(r'snapshot=(\d+)')
+            reg_stats = [
+                ('time', int, re.compile(r'time=(\d+)')),
+                ('mem_heap_B', int, re.compile(r'mem_heap_B=(\d+)')),
+                ('mem_heap_extra_B', int, re.compile(r'mem_heap_extra_B=(\d+)')),
+                ('mem_stacks_B', int, re.compile(r'mem_stacks_B=(\d+)')),
+                ('heap_tree', str, re.compile(r'heap_tree=(.*)')),
+            ]
+            for line in stats:
+                line = line.strip()
+                res = reg_title.fullmatch(line)
+                if res:
+                    if current_snapshot is not None:
+                        current_snapshot['total'] = 0
+                        if 'mem_heap_B' in current_snapshot:
+                            current_snapshot['total'] += current_snapshot['mem_heap_B']
+                        if 'mem_heap_extra_B' in current_snapshot:
+                            current_snapshot['total'] += current_snapshot['mem_heap_extra_B']
+                        if 'mem_stacks_B' in current_snapshot:
+                            current_snapshot['total'] += current_snapshot['mem_stacks_B']
+                        snapshots.append(current_snapshot)
+                    current_snapshot = {'snapshot': int(res.group(1))}
+                else:
+                    for label, dtype, reg in reg_stats:
+                        res = reg.fullmatch(line)
+                        if res:
+                            current_snapshot[label] = dtype(res.group(1))
+            data[cmd] = snapshots
+            if arguments.b_verbose:
+                peak_memory_snapshot = max(snapshots, key=lambda x: x['total'])
+                print(f' - {algo_label}: {peak_memory_snapshot['total']} B')
+        if arguments.b_verbose:
+            print()
         return data
     
     def run_kat_gen(self):
@@ -199,7 +303,7 @@ class MQOMInstance:
     def run_valgrind_bench(self):
         scheme_label = self.get_label()
         dst_path = self.dst_path
-        _, stderr = run_command(f'valgrind --leak-check=yes {dst_path}/{scheme_label}_bench 1', cwd=CWD)
+        _, stderr = run_command(f'valgrind --max-stackframe=10000000 --leak-check=yes {dst_path}/{scheme_label}_bench 1', cwd=CWD)
         summary = [line for line in stderr.split('\n') if 'ERROR SUMMARY' in line][0]
         return summary
 
@@ -309,14 +413,23 @@ if arguments.command == 'compile':
         copy_folder(str(CWD), tname)
         if not arguments.b_no_bench:
             stdout, stderr = scheme.compile_bench(tname)
-            if arguments.b_verbose_compilation or stderr:
+            if arguments.b_verbose or stderr:
+                print(stdout, stderr)
+            stdout, stderr = scheme.compile_bench_mem_keygen(tname)
+            if arguments.b_verbose or stderr:
+                print(stdout, stderr)
+            stdout, stderr = scheme.compile_bench_mem_sign(tname)
+            if arguments.b_verbose or stderr:
+                print(stdout, stderr)
+            stdout, stderr = scheme.compile_bench_mem_open(tname)
+            if arguments.b_verbose or stderr:
                 print(stdout, stderr)
         if not arguments.b_no_kat:
             stdout, stderr = scheme.compile_kat_gen(tname)
-            if arguments.b_verbose_compilation or stderr:
+            if arguments.b_verbose or stderr:
                 print(stdout, stderr)
             stdout, stderr = scheme.compile_kat_check(tname)
-            if arguments.b_verbose_compilation or stderr:
+            if arguments.b_verbose or stderr:
                 print(stdout, stderr)
     # Register the signal handler
     signal.signal(signal.SIGINT, signal_handler)
@@ -370,6 +483,13 @@ elif arguments.command == 'bench':
         data = scheme.run_bench(nb_experiments)
         assert data['correctness'] == nb_experiments, (data['correctness'], nb_experiments)
         #assert data['debug'].lower() == 'off', data['debug']
+        if bench_memory:
+            data_mem = scheme.run_bench_memory()
+            data['memory'] = {
+                'keygen':  max(data_mem['keygen'], key=lambda x: x['total'])['total'],
+                'sign':  max(data_mem['sign'], key=lambda x: x['total'])['total'],
+                'verif':  max(data_mem['open'], key=lambda x: x['total'])['total'],
+            }
         with lock:
             if len(all_data) != 0:
                 stats_file.write(',')
@@ -378,11 +498,13 @@ elif arguments.command == 'bench':
             stats_file.flush()
             os.fsync(stats_file)
             all_data.append(data)
+            
 
     # Register the signal handler
     signal.signal(signal.SIGINT, signal_handler)
 
     nb_experiments = arguments.nb_repetitions
+    bench_memory = arguments.b_bench_memory
     print(f'Nb repetitions: {nb_experiments}')
     schemes = MQOMInstance.get_schemes(arguments.schemes, BUILD_PATH)
     all_data = []
@@ -463,9 +585,13 @@ elif arguments.command == 'test':
         nb_experiments = arguments.nb_repetitions
         data = scheme.run_bench(nb_experiments)
         assert data['correctness'] == nb_experiments, (data['correctness'], nb_experiments)
+        if arguments.b_verbose:
+            print(data)
         # Generate KAT
         stdout, stderr = scheme.run_kat_gen()
         assert (not stderr), stderr
+        if arguments.b_verbose:
+            print(stdout)
         file_req = 'PQCsignKAT_{}.req'.format(data['sk_size'])
         file_rsp = 'PQCsignKAT_{}.rsp'.format(data['sk_size'])
         has_file_req = os.path.exists(os.path.join(scheme.dst_path, file_req))
@@ -479,6 +605,8 @@ elif arguments.command == 'test':
             # Check KAT
             stdout, stderr = scheme.run_kat_check()
             assert (not stderr), stderr
+            if arguments.b_verbose:
+                print(stdout)
             assert ('Everything is fine!' in stdout), stdout
             print(' - KAT check: ok (for %s)' % scheme.get_label())
         # Compare the KAT with an existing reference one?
