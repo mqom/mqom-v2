@@ -652,6 +652,9 @@ bench_mem_sign: libhash $(OBJS)
 bench_mem_open: libhash $(OBJS)
 	$(CC) $(CFLAGS) benchmark/bench_mem_open.c $(OBJS) $(LIB_HASH) -lm -o $(DESTINATION_PATH)$(PREFIX_EXEC)bench_mem_open
 
+print_objects:
+	@echo $(OBJS) && echo $(KECCAK_OBJS)
+
 clean:
 	@cd $(LIB_HASH_DIR) && make clean
 	@find . -name "*.o" -type f -delete
