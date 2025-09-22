@@ -30,7 +30,7 @@ do {                                                            \
 /* Tabulated AES (use T-tables to be more efficient) */
 
 /* S-Box */
-static const uint8_t sbox[256] = {
+EMBEDDED_SRAM static const uint8_t sbox[256] = {
      0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
      0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
      0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -51,7 +51,7 @@ static const uint8_t sbox[256] = {
 
 /* Encryption tables */
 
-static const uint32_t Te0[256] = {
+EMBEDDED_SRAM static const uint32_t Te0[256] = {
 	0xa56363c6, 0x847c7cf8, 0x997777ee, 0x8d7b7bf6,
 	0x0df2f2ff, 0xbd6b6bd6, 0xb16f6fde, 0x54c5c591,
 	0x50303060, 0x03010102, 0xa96767ce, 0x7d2b2b56,
@@ -118,7 +118,7 @@ static const uint32_t Te0[256] = {
 	0xcbb0b07b, 0xfc5454a8, 0xd6bbbb6d, 0x3a16162c,
 };
 
-static const uint32_t Te1[256] = {
+EMBEDDED_SRAM static const uint32_t Te1[256] = {
 	0x6363c6a5, 0x7c7cf884, 0x7777ee99, 0x7b7bf68d,
 	0xf2f2ff0d, 0x6b6bd6bd, 0x6f6fdeb1, 0xc5c59154,
 	0x30306050, 0x01010203, 0x6767cea9, 0x2b2b567d,
@@ -185,7 +185,7 @@ static const uint32_t Te1[256] = {
 	0xb0b07bcb, 0x5454a8fc, 0xbbbb6dd6, 0x16162c3a,
 };
 
-static const uint32_t Te2[256] = {
+EMBEDDED_SRAM static const uint32_t Te2[256] = {
 	0x63c6a563, 0x7cf8847c, 0x77ee9977, 0x7bf68d7b,
 	0xf2ff0df2, 0x6bd6bd6b, 0x6fdeb16f, 0xc59154c5,
 	0x30605030, 0x01020301, 0x67cea967, 0x2b567d2b,
@@ -252,7 +252,7 @@ static const uint32_t Te2[256] = {
 	0xb07bcbb0, 0x54a8fc54, 0xbb6dd6bb, 0x162c3a16,
 };
 
-static const uint32_t Te3[256] = {
+EMBEDDED_SRAM static const uint32_t Te3[256] = {
 	0xc6a56363, 0xf8847c7c, 0xee997777, 0xf68d7b7b,
 	0xff0df2f2, 0xd6bd6b6b, 0xdeb16f6f, 0x9154c5c5,
 	0x60503030, 0x02030101, 0xcea96767, 0x567d2b2b,
@@ -320,7 +320,7 @@ static const uint32_t Te3[256] = {
 };
 
 /* RCON constants table */
-static const uint32_t rcon[14] = {
+EMBEDDED_SRAM static const uint32_t rcon[14] = {
 	0x00000001, 0x00000002, 0x00000004, 0x00000008,
 	0x00000010, 0x00000020, 0x00000040, 0x00000080,
 	0x0000001b, 0x00000036, 0x0000006c, 0x000000d8,
@@ -691,22 +691,66 @@ err:
 
 /* ==== Public APIs ===== */
 
-int aes128_table_setkey_enc(rijndael_table_ctx *ctx, const uint8_t key[16])
+#if defined(RIJNDAEL_OPT_ARMV7M)
+/* When RIJNDAEL_OPT_ARMV7M is defined, we use the assembly optimized t-table based implementation
+ * from https://eprint.iacr.org/2016/714.pdf */
+extern void AES_128_keyschedule(const uint8_t *, uint8_t *);
+WEAK int aes128_table_setkey_enc(rijndael_table_ctx *ctx, const uint8_t key[16])
+{
+	int ret = -1;
+	uint8_t *rk;
+
+	if(ctx == NULL){
+		goto err;
+	}
+	ctx->rtype = AES128;
+	rk = (uint8_t*)(ctx->rk);
+
+	memcpy(&rk[0], key, 16);
+	AES_128_keyschedule(key, &rk[16]);
+
+	ret = 0;
+err:
+	return ret;
+}
+#else
+WEAK int aes128_table_setkey_enc(rijndael_table_ctx *ctx, const uint8_t key[16])
 {
 	return rijndael_setkey_enc(ctx, key, AES128);
 }
+#endif
 
-int aes256_table_setkey_enc(rijndael_table_ctx *ctx, const uint8_t key[32])
+WEAK int aes256_table_setkey_enc(rijndael_table_ctx *ctx, const uint8_t key[32])
 {
 	return rijndael_setkey_enc(ctx, key, AES256);
 }
 
-int rijndael256_table_setkey_enc(rijndael_table_ctx *ctx, const uint8_t key[32])
+WEAK int rijndael256_table_setkey_enc(rijndael_table_ctx *ctx, const uint8_t key[32])
 {
 	return rijndael_setkey_enc(ctx, key, RIJNDAEL_256_256);
 }
 
-int aes128_table_enc(const rijndael_table_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
+#if defined(RIJNDAEL_OPT_ARMV7M)
+/* When RIJNDAEL_OPT_ARMV7M is defined, we use the assmebly optimized t-table based implementation
+ * from https://eprint.iacr.org/2016/714.pdf */ 
+extern void AES_128_encrypt(const uint8_t *, const uint8_t *, uint8_t *);
+
+WEAK int aes128_table_enc(const rijndael_table_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
+{
+	int ret = -1;
+
+	if(ctx->rtype != AES128){
+		goto err;
+	}
+
+	AES_128_encrypt((uint8_t*)(ctx->rk), data_in, data_out);
+	
+	ret = 0;
+err:
+	return ret;
+}
+#else
+WEAK int aes128_table_enc(const rijndael_table_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
 {
 	int ret = -1;
 
@@ -719,8 +763,9 @@ int aes128_table_enc(const rijndael_table_ctx *ctx, const uint8_t data_in[16], u
 err:
 	return ret;
 }
+#endif
 
-int aes128_table_enc_x2(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
+WEAK int aes128_table_enc_x2(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
 {
         int ret;
 
@@ -730,7 +775,7 @@ int aes128_table_enc_x2(const rijndael_table_ctx *ctx1, const rijndael_table_ctx
         return ret;
 }
 
-int aes128_table_enc_x4(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const rijndael_table_ctx *ctx3, const rijndael_table_ctx *ctx4,
+WEAK int aes128_table_enc_x4(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const rijndael_table_ctx *ctx3, const rijndael_table_ctx *ctx4,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16])
 {
@@ -744,7 +789,20 @@ int aes128_table_enc_x4(const rijndael_table_ctx *ctx1, const rijndael_table_ctx
         return ret;
 }
 
-int aes256_table_enc(const rijndael_table_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
+WEAK int aes128_table_enc_x8(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const rijndael_table_ctx *ctx3, const rijndael_table_ctx *ctx4,
+                  const rijndael_table_ctx *ctx5, const rijndael_table_ctx *ctx6, const rijndael_table_ctx *ctx7, const rijndael_table_ctx *ctx8,
+                const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
+                const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
+                uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
+                uint8_t cipherText5[16], uint8_t cipherText6[16], uint8_t cipherText7[16], uint8_t cipherText8[16])
+{
+	int ret = 0;
+        ret |= aes128_table_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
+        ret |= aes128_table_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
+	return ret;
+}
+
+WEAK int aes256_table_enc(const rijndael_table_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
 {
 	int ret = -1;
 
@@ -758,7 +816,7 @@ err:
 	return ret;
 }
 
-int aes256_table_enc_x2(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
+WEAK int aes256_table_enc_x2(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
 {
         int ret;
 
@@ -768,7 +826,7 @@ int aes256_table_enc_x2(const rijndael_table_ctx *ctx1, const rijndael_table_ctx
         return ret;
 }
 
-int aes256_table_enc_x4(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const rijndael_table_ctx *ctx3, const rijndael_table_ctx *ctx4,
+WEAK int aes256_table_enc_x4(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const rijndael_table_ctx *ctx3, const rijndael_table_ctx *ctx4,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16])
 {
@@ -782,7 +840,20 @@ int aes256_table_enc_x4(const rijndael_table_ctx *ctx1, const rijndael_table_ctx
         return ret;
 }
 
-int rijndael256_table_enc(const rijndael_table_ctx *ctx, const uint8_t data_in[32], uint8_t data_out[32])
+WEAK int aes256_table_enc_x8(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const rijndael_table_ctx *ctx3, const rijndael_table_ctx *ctx4,
+                  const rijndael_table_ctx *ctx5, const rijndael_table_ctx *ctx6, const rijndael_table_ctx *ctx7, const rijndael_table_ctx *ctx8,
+                const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
+                const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
+                uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
+                uint8_t cipherText5[16], uint8_t cipherText6[16], uint8_t cipherText7[16], uint8_t cipherText8[16])
+{
+	int ret = 0;
+        ret |= aes256_table_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
+        ret |= aes256_table_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
+	return ret;
+}
+
+WEAK int rijndael256_table_enc(const rijndael_table_ctx *ctx, const uint8_t data_in[32], uint8_t data_out[32])
 {
 	int ret = -1;
 
@@ -796,7 +867,7 @@ err:
 	return ret;
 }
 
-int rijndael256_table_enc_x2(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2,
+WEAK int rijndael256_table_enc_x2(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2,
                         const uint8_t plainText1[32], const uint8_t plainText2[32],
                         uint8_t cipherText1[32], uint8_t cipherText2[32])
 {
@@ -810,7 +881,7 @@ int rijndael256_table_enc_x2(const rijndael_table_ctx *ctx1, const rijndael_tabl
 }
 
 
-int rijndael256_table_enc_x4(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const rijndael_table_ctx *ctx3, const rijndael_table_ctx *ctx4,
+WEAK int rijndael256_table_enc_x4(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const rijndael_table_ctx *ctx3, const rijndael_table_ctx *ctx4,
                 const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
                 uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32])
 {
@@ -822,6 +893,19 @@ int rijndael256_table_enc_x4(const rijndael_table_ctx *ctx1, const rijndael_tabl
         ret |= rijndael256_table_enc(ctx4, plainText4, cipherText4);
 
         return ret;
+}
+
+WEAK int rijndael256_table_enc_x8(const rijndael_table_ctx *ctx1, const rijndael_table_ctx *ctx2, const rijndael_table_ctx *ctx3, const rijndael_table_ctx *ctx4,
+                  const rijndael_table_ctx *ctx5, const rijndael_table_ctx *ctx6, const rijndael_table_ctx *ctx7, const rijndael_table_ctx *ctx8,
+                const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
+                const uint8_t plainText5[32], const uint8_t plainText6[32], const uint8_t plainText7[32], const uint8_t plainText8[32],
+                uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32],
+                uint8_t cipherText5[32], uint8_t cipherText6[32], uint8_t cipherText7[32], uint8_t cipherText8[32])
+{
+	int ret = 0;
+        ret |= rijndael256_table_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
+        ret |= rijndael256_table_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
+	return ret;
 }
 
 #else /* !RIJNDAEL_TABLE */

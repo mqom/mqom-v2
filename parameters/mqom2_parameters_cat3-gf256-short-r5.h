@@ -2,6 +2,7 @@
 #define __MQOM2_PARAMETERS_H__
 
 #define MQOM2_PARAM_LABEL "MQOM2-L3-gf256-short-r5"
+#define MQOM2_PARAM_KAT cat3_gf256_short_r5
 
 #ifndef MQOM2_PARAM_SECURITY
 #define MQOM2_PARAM_SECURITY 192

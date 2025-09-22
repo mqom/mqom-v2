@@ -132,11 +132,14 @@ typedef enum {
 	} \
 } while(0)
 
-
 /* Matrix multiplication over GF256to2: this is fundamentally the same as GF256 */
 #define GF256to2_MAT_MULT GF256_MAT_MULT
 #define GF2_GF256to2_MAT_MULT GF2_GF256_MAT_MULT
 #define GF256to2_GF2_MAT_MULT GF256_GF2_MAT_MULT
+#define GF256_GF4_MAT_MULT GF256_GF2_MAT_MULT
+#define GF256to2_GF4_MAT_MULT GF256_GF2_MAT_MULT
+#define GF256_GF16_MAT_MULT GF256_GF2_MAT_MULT
+#define GF256to2_GF16_MAT_MULT GF256_GF2_MAT_MULT
 
 /* GF(256) matrix transposition */
 #define GF256_MAT_TRANSPOSE(A, B, n, mtype) do { \

@@ -21,7 +21,7 @@ http://creativecommons.org/publicdomain/zero/1.0/
 
 /* ---------------------------------------------------------------- */
 
-HashReturn Keccak_HashInitializetimes4(Keccak_HashInstancetimes4 *instance, unsigned int rate, unsigned int capacity, unsigned int hashbitlen, unsigned char delimitedSuffix)
+WEAK HashReturn Keccak_HashInitializetimes4(Keccak_HashInstancetimes4 *instance, unsigned int rate, unsigned int capacity, unsigned int hashbitlen, unsigned char delimitedSuffix)
 {
     HashReturn result;
 
@@ -37,7 +37,7 @@ HashReturn Keccak_HashInitializetimes4(Keccak_HashInstancetimes4 *instance, unsi
 
 /* ---------------------------------------------------------------- */
 
-HashReturn Keccak_HashUpdatetimes4(Keccak_HashInstancetimes4 *instance, const BitSequence **data, BitLength databitlen)
+WEAK HashReturn Keccak_HashUpdatetimes4(Keccak_HashInstancetimes4 *instance, const BitSequence **data, BitLength databitlen)
 {
     if ((databitlen % 8) != 0)
         return KECCAK_FAIL;
@@ -46,7 +46,7 @@ HashReturn Keccak_HashUpdatetimes4(Keccak_HashInstancetimes4 *instance, const Bi
 
 /* ---------------------------------------------------------------- */
 
-HashReturn Keccak_HashFinaltimes4(Keccak_HashInstancetimes4 *instance, BitSequence **hashval)
+WEAK HashReturn Keccak_HashFinaltimes4(Keccak_HashInstancetimes4 *instance, BitSequence **hashval)
 {
     HashReturn ret = (HashReturn)KeccakWidth1600times4_SpongeAbsorbLastFewBits(&instance->sponge, instance->delimitedSuffix);
     if (ret == KECCAK_SUCCESS)
@@ -57,7 +57,7 @@ HashReturn Keccak_HashFinaltimes4(Keccak_HashInstancetimes4 *instance, BitSequen
 
 /* ---------------------------------------------------------------- */
 
-HashReturn Keccak_HashSqueezetimes4(Keccak_HashInstancetimes4 *instance, BitSequence **data, BitLength databitlen)
+WEAK HashReturn Keccak_HashSqueezetimes4(Keccak_HashInstancetimes4 *instance, BitSequence **data, BitLength databitlen)
 {
     if ((databitlen % 8) != 0)
         return KECCAK_FAIL;

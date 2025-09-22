@@ -347,31 +347,28 @@ static inline uint8_t gf256_mult_avx2(uint8_t x, uint8_t y)
 
 static inline __m256i gf256_mult_vectorized_avx2(__m256i _a, __m256i _b)
 {
-        uint32_t j;
+        /* NOTE: when GFNI is detected, we use the accelerated GF(256) Rijndael instruction */
+#if defined(__GFNI__) && !defined(NO_GFNI)
+	return _mm256_gf2p8mul_epi8(_a, _b);
+#else
+	/* Fallback to the slower implementation without GFNI */
         /* Our reduction polynomial */
         const __m256i red_poly = _mm256_set_epi64x(0x1B1B1B1B1B1B1B1B, 0x1B1B1B1B1B1B1B1B, 0x1B1B1B1B1B1B1B1B, 0x1B1B1B1B1B1B1B1B);
-        const __m256i lsb      = _mm256_set_epi64x(0x0101010101010101, 0x0101010101010101, 0x0101010101010101, 0x0101010101010101);
-        const __m256i rm_lsb   = _mm256_set_epi64x(0xfefefefefefefefe, 0xfefefefefefefefe, 0xfefefefefefefefe, 0xfefefefefefefefe);
-        const __m256i msb      = _mm256_set_epi64x(0x8080808080808080, 0x8080808080808080, 0x8080808080808080, 0x8080808080808080);
-        const __m256i rm_msb   = _mm256_set_epi64x(0x7f7f7f7f7f7f7f7f, 0x7f7f7f7f7f7f7f7f, 0x7f7f7f7f7f7f7f7f, 0x7f7f7f7f7f7f7f7f);
         const __m256i zero     = _mm256_setzero_si256();
-	__m256i accu = _mm256_setzero_si256();
+        __m256i accu = _mm256_setzero_si256();
+
+        uint32_t j;
+        __m256i mask_lsb, tmp;
 
         /* Compute the vectorized multiplication in GF(256) */
         for(j = 0; j < 8; j++){
-                __m256i mask_lsb = _mm256_slli_epi64(_b & lsb, 7);
-                __m256i mask_msb = _a & msb;
-                /* Conditionally xor with a or 0 */
+                mask_lsb = _mm256_slli_epi64(_b, 7-j);
                 accu ^= _mm256_blendv_epi8(zero, _a, mask_lsb);
-                /* Shift right of _a by 1 is simply a global shit right with a AND 0x80 */
-                _a = _mm256_slli_epi64(_a, 1) & rm_lsb;
-                /* Conditionally xor with polynomial reduction or not */
-                _a ^= _mm256_blendv_epi8(zero, red_poly, mask_msb);
-                /* Shift left of _b by 1 is simply a global shift left with a AND 0x01 */
-                _b = _mm256_srli_epi64(_b, 1) & rm_msb;
+                tmp = _mm256_add_epi8(_a, _a);
+                _a = _mm256_blendv_epi8(zero, red_poly, _a) ^ tmp;
         }
-
         return accu;
+#endif
 }
 
 /*
@@ -572,6 +569,162 @@ static inline void gf256_gf2_mat_mult_avx2(const uint8_t *A, const uint8_t *X, u
 static inline void gf256_mat_transpose_avx2(const uint8_t *A, uint8_t *B, uint32_t n, matrix_type mtype)
 {
         gf256_mat_transpose_ref(A, B, n, mtype);
+}
+
+/*
+ * "Hybrid" multiplication of a constant in GF(4) and a vector in GF(256)
+ */
+static inline void gf4_gf256_constant_vect_mult_avx2(uint8_t a_gf4, const uint8_t *b_gf256, uint8_t *c_gf256, uint32_t n)
+{
+    gf4_gf256_constant_vect_mult_ref(a_gf4, b_gf256, c_gf256, n);
+    return;
+}
+
+/*
+ * "Hybrid" multiplication of a constant in GF(256) and a vector in GF(4)
+ */
+static inline void gf256_gf4_constant_vect_mult_avx2(uint8_t a_gf256, const uint8_t *b_gf4, uint8_t *c_gf256, uint32_t n)
+{
+    gf256_gf4_constant_vect_mult_ref(a_gf256, b_gf4, c_gf256, n);
+    return;
+}
+
+/*
+ * "Hybrid" scalar multiplication of a vector in GF(4) and a vector in GF(256)
+ */
+static inline uint8_t gf4_gf256_vect_mult_avx2(const uint8_t *a_gf4, const uint8_t *b_gf256, uint32_t n)
+{
+    return gf4_gf256_vect_mult_ref(a_gf4, b_gf256, n);
+}
+
+/*
+ * "Hybrid" scalar multiplication of a vector in GF(256) and a vector in GF(4)
+ */
+static inline uint8_t gf256_gf4_vect_mult_avx2(const uint8_t *a_gf256, const uint8_t *b_gf4, uint32_t n)
+{
+	return gf4_gf256_vect_mult_avx2(b_gf4, a_gf256, n);
+}
+
+/*
+ * "Hybrid" matrix multiplication of a matrix in GF(256) and a vector in GF(4), resulting
+ *  in a vector in GF(256)
+ */
+static inline void gf256_gf4_mat_mult_avx2(const uint8_t *A, const uint8_t *X, uint8_t *Y, uint32_t n, matrix_type mtype)
+{
+    GF256_GF4_MAT_MULT(A, X, Y, n, mtype, gf256_gf4_vect_mult_avx2);
+}
+
+/*
+ * "Hybrid" multiplication of a constant in GF(16) and a vector in GF(256)
+ */
+static inline void gf16_gf256_constant_vect_mult_avx2(uint8_t a_gf16, const uint8_t *b_gf256, uint8_t *c_gf256, uint32_t n)
+{
+    uint8_t a_gf256;
+    gf256_vect_lift_from_gf16_ref(&a_gf16, &a_gf256, 1);
+    gf256_constant_vect_mult_avx2(a_gf256, b_gf256, c_gf256, n);
+    return;
+}
+
+/* Vectorized lifting from GF(16) to GF(256) */
+static inline void gf256_vect_lift_from_gf16_avx2(const uint8_t *b_gf16, uint8_t *c_gf256, uint32_t len)
+{
+        uint32_t i;
+        __m256i _a_gf16, _a, _b, _c;
+	const __m256i shuff_msk_even = _mm256_set_epi8(-1, 15, -1,  14,  -1, 13, -1, 12, -1, 11, -1,  10,  -1, 9, -1, 8,
+                                                       -1, 7, -1,  6,  -1, 5, -1, 4, -1, 3, -1,  2,  -1, 1, -1, 0);
+	const __m256i shuff_msk_odd  = _mm256_set_epi8(15, -1, 14, -1,  13,  -1, 12, -1, 11, -1, 10, -1,  9,  -1, 8, -1,
+                                                       7, -1, 6, -1,  5,  -1, 4, -1, 3, -1, 2, -1,  1,  -1, 0, -1);
+	const __m256i lifting_lookup = _mm256_set_epi8(0x0c, 0x0d, 0xec, 0xed, 0x51, 0x50, 0xb1, 0xb0, 0xbc, 0xbd, 0x5c, 0x5d, 0xe1, 0xe0, 0x01, 0x00,
+  						       0x0c, 0x0d, 0xec, 0xed, 0x51, 0x50, 0xb1, 0xb0, 0xbc, 0xbd, 0x5c, 0x5d, 0xe1, 0xe0, 0x01, 0x00);
+	const __m256i nib_mask = _mm256_set1_epi8(0x0f);
+
+	for(i = 0; i < len; i += 32){
+                if((len-i) < 32){
+                        _a_gf16 = load_incomplete_m256((const uint8_t*)&b_gf16[i/2], (len-i+1)/2);
+                }
+                else{
+                        /* Obvious 256-bit */
+                        _a_gf16 = load_incomplete_m256((const uint8_t*)&b_gf16[i/2], 16);
+                }
+
+		/* Duplicate lanes */
+		_a_gf16 = _mm256_permute4x64_epi64(_a_gf16, 0b01000100);
+		/* Isolate the nibbles in _a_gf16 */
+		_a = _a_gf16 & nib_mask;
+		_b = _mm256_srli_epi64(_a_gf16, 4) & nib_mask;
+		/* Create the nibbles mix */
+		_c = _mm256_shuffle_epi8(_a, shuff_msk_even) | _mm256_shuffle_epi8(_b, shuff_msk_odd);
+		/* Lift: since we are on 16 bits, we can perform a vperm lookup inside the register */
+		_c = _mm256_shuffle_epi8(lifting_lookup, _c);
+		/* Store the result */
+		if((len-i) < 32){
+			store_incomplete_m256(_c, &c_gf256[i], (len-i));
+		}
+		else{
+                        _mm256_storeu_si256((__m256i*)&c_gf256[i], _c);
+		}
+	}
+
+	return;
+}
+
+/*
+ * "Hybrid" multiplication of a constant in GF(256) and a vector in GF(16)
+ */
+static inline void gf256_gf16_constant_vect_mult_avx2(uint8_t a_gf256, const uint8_t *b_gf16, uint8_t *c_gf256, uint32_t n)
+{
+    gf256_vect_lift_from_gf16_avx2(b_gf16, c_gf256, n);
+    gf256_constant_vect_mult_avx2(a_gf256, c_gf256, c_gf256, n);
+    return;
+}
+
+/*
+ * "Hybrid" scalar multiplication of a vector in GF(16) and a vector in GF(256)
+ */
+static inline uint8_t gf16_gf256_vect_mult_avx2(const uint8_t *a_gf16, const uint8_t *b_gf256, uint32_t len)
+{
+        uint32_t i;
+        __m256i accu, _a, _b;
+        __m256i _a_gf16;
+
+        /* Set the accumulator to 0 */
+        accu = _mm256_setzero_si256();
+
+        for(i = 0; i < len; i += 32){
+                if((len-i) < 32){
+                        _a_gf16 = load_incomplete_m256((const uint8_t*)&a_gf16[i/2], (len-i+1)/2);
+			_a = _mm256_setzero_si256();
+                        gf256_vect_lift_from_gf16_avx2((const uint8_t*)&_a_gf16, (uint8_t*)&_a, len-i);
+                        _b = load_incomplete_m256((const uint8_t*)&b_gf256[i], len-i);
+                }
+                else{
+                        /* Obvious 256-bit */
+                        _a_gf16 = load_incomplete_m256((const uint8_t*)&a_gf16[i/2], 16);
+                        gf256_vect_lift_from_gf16_avx2((const uint8_t*)&_a_gf16, (uint8_t*)&_a, 32);
+                        _b = _mm256_lddqu_si256((__m256i*)&b_gf256[i]);
+                }
+                /* Multiply in GF(256) */
+                accu ^= gf256_mult_vectorized_avx2(_a, _b);
+        }
+
+        return sum_uint8_avx2(accu);
+}
+
+/*
+ * "Hybrid" scalar multiplication of a vector in GF(256) and a vector in GF(16)
+ */
+static inline uint8_t gf256_gf16_vect_mult_avx2(const uint8_t *a_gf256, const uint8_t *b_gf16, uint32_t n)
+{
+    return gf16_gf256_vect_mult_avx2(b_gf16, a_gf256, n);
+}
+
+/*
+ * "Hybrid" matrix multiplication of a matrix in GF(256) and a vector in GF(16), resulting
+ *  in a vector in GF(256)
+ */
+static inline void gf256_gf16_mat_mult_avx2(const uint8_t *A, const uint8_t *X, uint8_t *Y, uint32_t n, matrix_type mtype)
+{
+    GF256_GF16_MAT_MULT(A, X, Y, n, mtype, gf256_gf16_vect_mult_avx2);
 }
 
 
@@ -898,6 +1051,125 @@ static inline void gf256to2_gf256_mat_mult_avx2(const uint16_t *A, const uint8_t
 static inline void gf256to2_mat_transpose_avx2(const uint16_t *A, uint16_t *B, uint32_t n, matrix_type mtype)
 {
         gf256to2_mat_transpose_ref(A, B, n, mtype);
+}
+
+/*
+ * "Hybrid" constant multiplication of a constant in GF(4) and a vector in GF(256^2)
+ */
+static inline void gf4_gf256to2_constant_vect_mult_avx2(uint8_t a_gf4, const uint16_t *b_gf256to2, uint16_t *c_gf256to2, uint32_t n)
+{
+    gf4_gf256to2_constant_vect_mult_ref(a_gf4, b_gf256to2, c_gf256to2, n);
+    return;
+}
+
+/*
+ * "Hybrid" constant multiplication of a constant in GF(256^2) and a vector in GF(4)
+ */
+static inline void gf256to2_gf4_constant_vect_mult_avx2(uint16_t a_gf256to2, const uint8_t *b_gf4, uint16_t *c_gf256to2, uint32_t n)
+{
+    gf256to2_gf4_constant_vect_mult_ref(a_gf256to2, b_gf4, c_gf256to2, n);
+    return;
+}
+
+/*
+ * "Hybrid" scalar multiplication of a vector in GF(4) and a vector in GF(256^2)
+ */
+static inline uint16_t gf4_gf256to2_vect_mult_avx2(const uint8_t *a_gf4, const uint16_t *b_gf256to2, uint32_t n)
+{
+    return gf4_gf256to2_vect_mult_ref(a_gf4, b_gf256to2, n);
+}
+
+/*
+ * "Hybrid" scalar multiplication of a vector in GF(256^2) and a vector in GF(4)
+ */
+static inline uint16_t gf256to2_gf4_vect_mult_avx2(const uint16_t *a_gf256to2, const uint8_t *b_gf4, uint32_t n)
+{
+    return gf4_gf256to2_vect_mult_avx2(b_gf4, a_gf256to2, n);
+}
+
+/*
+ * "Hybrid" matrix multiplication of a matrix in GF(256^2) and a vector in GF(4), resulting
+ *  in a vector in GF(256^2)
+ */
+static inline void gf256to2_gf4_mat_mult_avx2(const uint16_t *A, const uint8_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
+{
+    GF256to2_GF4_MAT_MULT(A, X, Y, n, mtype, gf256to2_gf4_vect_mult_avx2);
+}
+
+/*
+ * "Hybrid" constant multiplication of a constant in GF(16) and a vector in GF(256^2)
+ */
+static inline void gf16_gf256to2_constant_vect_mult_avx2(uint8_t a_gf16, const uint16_t *b_gf256to2, uint16_t *c_gf256to2, uint32_t n)
+{
+    uint8_t a_gf256;
+    gf256_vect_lift_from_gf16_ref(&a_gf16, &a_gf256, 1);
+    gf256_gf256to2_constant_vect_mult_avx2(a_gf256, b_gf256to2, c_gf256to2, n);
+    return;
+}
+
+/*
+ * "Hybrid" constant multiplication of a constant in GF(256^2) and a vector in GF(16)
+ */
+static inline void gf256to2_gf16_constant_vect_mult_avx2(uint16_t a_gf256to2, const uint8_t *b_gf16, uint16_t *c_gf256to2, uint32_t n)
+{
+    uint8_t* buf = ((uint8_t*) c_gf256to2) + n;
+    gf256_vect_lift_from_gf16_avx2(b_gf16, buf, n);
+    gf256to2_gf256_constant_vect_mult_avx2(a_gf256to2, buf, c_gf256to2, n);
+    return;
+}
+
+/*
+ * "Hybrid" scalar multiplication of a vector in GF(16) and a vector in GF(256^2)
+ */
+static inline uint16_t gf16_gf256to2_vect_mult_avx2(const uint8_t *a_gf16, const uint16_t *b_gf256to2, uint32_t len)
+{
+        uint32_t i;
+        __m256i accu, _a, _b;
+        __m256i _a_gf16;
+
+        /* Set the accumulator to 0 */
+        accu = _mm256_setzero_si256();
+
+        for(i = 0; i < (2 * len); i += 32){
+                const __m256i shuff_msk = _mm256_set_epi8(15, 15, 14, 14, 13, 13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8,
+                                                          7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2,  2,  1, 1, 0, 0);
+                if(((2 * len)-i) < 32){
+                        _a_gf16 = load_incomplete_m256((const uint8_t*)&a_gf16[i / 4], (((2 * len)-i) + 3)/ 4);
+                        _a = _mm256_setzero_si256();
+                        gf256_vect_lift_from_gf16_avx2((const uint8_t*)&_a_gf16, (uint8_t*)&_a, ((2 * len)-i+1)/2);
+                        _b = load_incomplete_m256((const uint8_t*)&b_gf256to2[i / 2], (2 * len)-i);
+                }
+                else{
+                        /* Obvious 256-bit */
+                        _a_gf16 = load_incomplete_m256((const uint8_t*)&a_gf16[i / 4], 8);
+                        gf256_vect_lift_from_gf16_avx2((const uint8_t*)&_a_gf16, (uint8_t*)&_a, 16);
+                        _b = _mm256_lddqu_si256((__m256i*)&b_gf256to2[i / 2]);
+                }
+                /* Duplicate the values in _a */
+                _a = _mm256_permute4x64_epi64(_a, 0b01000100);
+                _a = _mm256_shuffle_epi8(_a, shuff_msk);
+                /* Multiply in GF(256) */
+                accu ^= gf256_mult_vectorized_avx2(_a, _b);
+        }
+
+        return sum_uint16_avx2(accu);
+}
+
+/*
+ * "Hybrid" scalar multiplication of a vector in GF(256^2) and a vector in GF(16)
+ */
+static inline uint16_t gf256to2_gf16_vect_mult_avx2(const uint16_t *a_gf256to2, const uint8_t *b_gf16, uint32_t n)
+{
+    return gf16_gf256to2_vect_mult_avx2(b_gf16, a_gf256to2, n);
+}
+
+/*
+ * "Hybrid" matrix multiplication of a matrix in GF(256^2) and a vector in GF(16), resulting
+ *  in a vector in GF(256^2)
+ */
+static inline void gf256to2_gf16_mat_mult_avx2(const uint16_t *A, const uint8_t *X, uint16_t *Y, uint32_t n, matrix_type mtype)
+{
+    GF256to2_GF16_MAT_MULT(A, X, Y, n, mtype, gf256to2_gf16_vect_mult_avx2);
 }
 
 #endif /* __AVX2__ */

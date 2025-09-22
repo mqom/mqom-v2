@@ -21,9 +21,9 @@ static inline int get_number_of_tests(int argc, char *argv[], int default_value)
 }
 
 static inline void print_configuration(void) {
-    printf("===== SCHEME CONFIG =====\n");
-    printf("[API] Algo Name: " CRYPTO_ALGNAME "\n");
-    printf("[API] Algo Version: " CRYPTO_VERSION "\n");
+    printf("===== SCHEME CONFIG =====\r\n");
+    printf("[API] Algo Name: " CRYPTO_ALGNAME "\r\n");
+    printf("[API] Algo Version: " CRYPTO_VERSION "\r\n");
     printf("Instruction Sets:");
 #ifdef __SSE__
     printf(" SSE");
@@ -34,25 +34,65 @@ static inline void print_configuration(void) {
 #ifdef __AVX2__
     printf(" AVX2");
 #endif
-#if defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VL__) && defined(__AVX512VPOPCNTDQ__)
-    printf(" AVX512BW AVX512F AVX512VL AVX512VPOPCNTDQ");
+#if defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VL__) && defined(__AVX512VPOPCNTDQ__) && defined(__AVX512VBMI__)
+    printf(" AVX512BW AVX512F AVX512VL AVX512VPOPCNTDQ AVX512VBMI");
 #endif
-#ifdef __GFNI__
+#if defined(__GFNI__) && !defined(NO_GFNI)
     printf(" GFNI");
 #endif
 #ifdef __AES__
     printf(" AES-NI");
 #endif
-    printf("\n");
+    printf("\r\n");
 
+    printf("Configuration elements:\r\n");
+#ifdef MEMORY_EFFICIENT_KEYGEN
+    printf("  Keygen: memopt\r\n");
+#else
+    printf("  Keygen: default\r\n");
+#endif
+#ifdef MEMORY_EFFICIENT_PIOP
+    printf("  PIOP: memopt\r\n");
+#else
+    printf("  PIOP: default\r\n");
+#endif
+#ifdef MEMORY_EFFICIENT_BLC
+    printf("  BLC: memopt\r\n");
+#ifdef BLC_INTERNAL_X4
+    printf("    BLC_INTERNAL_X4 ON\r\n");
+#endif
+#ifdef BLC_NB_SEED_COMMITMENTS_PER_HASH_UPDATE
+    printf("    BLC_NB_SEED_COMMITMENTS_PER_HASH_UPDATE %d\r\n", BLC_NB_SEED_COMMITMENTS_PER_HASH_UPDATE);
+#else
+    printf("    BLC_NB_SEED_COMMITMENTS_PER_HASH_UPDATE 1 (default)\r\n");
+#endif
+#ifdef GGMTREE_NB_ENC_CTX_IN_MEMORY
+    printf("    GGMTREE_NB_ENC_CTX_IN_MEMORY %d\r\n", GGMTREE_NB_ENC_CTX_IN_MEMORY);
+#else
+    printf("    GGMTREE_NB_ENC_CTX_IN_MEMORY 1 (default)\r\n");
+#endif
+#else
+    printf("  BLC: default\r\n");
+#endif
 
-    printf("Rijndael implementation: %s\n", rijndael_conf);
-    printf("Fields implementation: %s\n", fields_conf);
+#ifdef USE_PRG_CACHE
+    printf("  PRG cache ON\r\n");
+#else
+    printf("  PRG cache OFF\r\n");
+#endif
+#if defined(USE_PIOP_CACHE) && !defined(MEMORY_EFFICIENT_PIOP)
+    printf("  PIOP cache ON\r\n");
+#else
+    printf("  PIOP cache OFF\r\n");
+#endif
+
+    printf("  Rijndael implementation: %s\r\n", rijndael_conf);
+    printf("  Fields implementation: %s\r\n", fields_conf);
 
 #ifndef NDEBUG
-    printf("Debug: On\n");
+    printf("Debug: On\r\n");
 #else
-    printf("Debug: Off\n");
+    printf("Debug: Off\r\n");
 #endif
 }
 

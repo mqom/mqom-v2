@@ -17,6 +17,11 @@ endif
 
 CFLAGS += -DNO_MISALIGNED_ACCESSES
 
+# "Weak" low-level API
+ifeq ($(USE_WEAK_LOW_LEVEL_API),1)
+  CFLAGS += -DUSE_WEAK_LOW_LEVEL_API
+endif
+
 COMMON_SOURCES=KeccakHash.c KeccakSponge.c KeccakSpongetimes4.c KeccakHashtimes4.c 
 COMMON_OBJECTS=KeccakHash.o KeccakSponge.o KeccakSpongetimes4.o KeccakHashtimes4.o 
 
@@ -46,6 +51,14 @@ ifeq ($(KECCAK_PLATFORM),plain32)
 	SPECIFIC_OBJECTS=plain32/KeccakP-1600-inplace32BI.o plain32/KeccakP-1600-times4-on1.o
 	PLATFORM=1
 endif
+ifeq ($(KECCAK_PLATFORM),armv7m)
+	INCLUDE_PATHS=armv7m
+	#SPECIFIC_SOURCES=armv7m/KeccakP-1600-inplace-32bi-armv7m-le-gcc.s armv7m/KeccakP-1600-times4-on1.c
+	#SPECIFIC_OBJECTS=armv7m/KeccakP-1600-inplace-32bi-armv7m-le-gcc.o armv7m/KeccakP-1600-times4-on1.o
+	SPECIFIC_SOURCES=armv7m/keccakp1600_balanced_cortexm3-4.S armv7m/KeccakP-1600-times4-on1.c
+	SPECIFIC_OBJECTS=armv7m/keccakp1600_balanced_cortexm3-4.o armv7m/KeccakP-1600-times4-on1.o
+	PLATFORM=1
+endif
 
 # Use the sanitizers
 ifeq ($(USE_SANITIZERS),1)
@@ -70,7 +83,7 @@ SHA3LIB=libhash.a
 
 %.o : %.c
 ifneq ($(PLATFORM),1)
-	$(error "Sorry: no platform specified ... Please select KECCAK_PLATFORM=avx512, or avx2, or opt64, or plain32")
+	$(error "Sorry: no platform specified ... Please select KECCAK_PLATFORM=avx512, or avx2, or opt64, or plain32, or armv7m")
 endif
 	$(CC) $(CFLAGS) -c -I. $(HEADERS_INCLUDE) $< -o $@
 
@@ -82,8 +95,14 @@ $(SHA3LIB): $(OBJECTS)
 %.o : %.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
+%.o : %.s
+	$(CC) $(CFLAGS) -c $< -o $@
+
 headers:
 	@echo HEADERS=$(INCLUDE_PATHS)
+
+print_objects:
+	@echo $(OBJECTS)
 
 clean:
 	rm $(COMMON_OBJECTS) $(SPECIFIC_OBJECTS) 2>/dev/null || true

@@ -3,7 +3,7 @@ import time
 import os, json, sys, signal
 
 CATEGORIES = {'cat1': '128', 'cat3': '192', 'cat5': '256'}
-BASE_FIELDS = {'gf2': '1', 'gf256': '8'}
+BASE_FIELDS = {'gf2': '1', 'gf16': '4', 'gf256': '8'}
 TRADE_OFFS = {'short': '1', 'fast': '0'}
 VARIANTS = {'r3': '3', 'r5': '5'}
 
@@ -43,6 +43,8 @@ parser_bench.add_argument('-n', '--nb-repetitions', dest='nb_repetitions', type=
 parser_bench.add_argument('-p', '--parallel-jobs', dest='parallel_jobs', type=int, default=0, help='Number of parallel jobs (-1 means max, 0 means monojob)')
 parser_bench.add_argument('--verbose', action='store_true', dest='b_verbose', help='Activate verbose benchmarks')
 parser_bench.add_argument('--memory', action='store_true', dest='b_bench_memory', help='Bench also memory usage')
+parser_bench.add_argument('-o', '--output', dest='b_bench_file_name', help='Specify the output json benchmarking filename')
+parser_bench.add_argument('-f', '--build-folder', dest='b_bench_build_folder_name', help='Specify the build folder (default is "build/")')
 
 parser_test = subparsers.add_parser('test', help='test')
 parser_test.add_argument('schemes', nargs='+', choices=choices_scheme_sets, help='schemes to test')
@@ -52,6 +54,7 @@ parser_test.add_argument('--no-kat-check', action='store_true', dest='b_no_kat_c
 parser_test.add_argument('--no-valgrind', action='store_true', dest='b_no_valgrind', help='Avoid using valgrind')
 parser_test.add_argument('-p', '--parallel-jobs', dest='parallel_jobs', type=int, default=0, help='Number of parallel jobs (-1 means max, 0 means monojob)')
 parser_test.add_argument('--verbose', action='store_true', dest='b_verbose', help='Activate verbose tests')
+parser_test.add_argument('-f', '--build-folder', dest='b_test_build_folder_name', help='Specify the build folder (default is "build/")')
 
 arguments = parser.parse_args()
 
@@ -198,27 +201,22 @@ class MQOMInstance:
             data['sign_cycles'] = sign_cycles
             data['verif_cycles'] = verif_cycles
             # Try to extract the detailed elements
-            expand_mq_dict = {
-                'total' : 'ExpandMQ',
-            }
             blc_commit_dict = {
                 'total' : 'BLC.Commit',
                 'expand_trees' : r'\[BLC.Commit\] Expand Trees',
-                'keysch_commit' : r'\[BLC.Commit\] KeySch. Commit',
                 'seed_commit' : r'\[BLC.Commit\] Seed Commit',
                 'prg' : r'\[BLC.Commit\] PRG',
                 'xof' : r'\[BLC.Commit\] XOF',
                 'arithm' : r'\[BLC.Commit\] Arithm',
-                'global_xof' : r'\[BLC.Commit\] Global XOF',
             }
             piop_compute_dict = {
                 'total' : 'PIOP.Compute',
+                'expand_mq' : r'\[PIOP.Compute\] ExpandMQ',
                 'expand_batching_mat' : r'\[PIOP.Compute\] Expand Batching Mat',
                 'matrix_mult_ext' : r'\[PIOP.Compute\] Matrix Mul Ext',
                 'compute_t1' : r'\[PIOP.Compute\] Compute t1',
                 'compute_p_zi' : r'\[PIOP.Compute\] Compute P_zi',
-                'batch' : r'\[PIOP.Compute\] Batch',
-                'add_masks' : r'\[PIOP.Compute\] Add Masks',
+                'batch_and_mask' : r'\[PIOP.Compute\] Batch and Mask',
             }
             sample_challenge_dict = {
                 'total' : 'Sample Challenge',
@@ -226,8 +224,6 @@ class MQOMInstance:
             blc_open_dict = {
                 'total' : 'BLC.Open',
             }
-            for d in expand_mq_dict:
-                data['detailed_' + 'expand_mq_' + d] = (float(get_info(stdout, r'.*- %s: (.+) cycles\)' % expand_mq_dict[d]).split("ms")[0]), float(get_info(stdout, r'.*- %s: (.+) cycles\)' % expand_mq_dict[d]).split("(")[1]))
             for d in blc_commit_dict:
                 data['detailed_' + 'blc_commit_' + d] = (float(get_info(stdout, r'.*- %s: (.+) cycles\)' % blc_commit_dict[d]).split("ms")[0]), float(get_info(stdout, r'.*- %s: (.+) cycles\)' % blc_commit_dict[d]).split("(")[1])) 
             for d in piop_compute_dict:
@@ -462,8 +458,18 @@ elif arguments.command == 'bench':
     # This is a threading lock to handle parallelism for writing into a file
     lock = threading.Lock()
 
+    # Override build folder if asked to
+    if arguments.b_bench_build_folder_name is not None:
+        BUILD_PATH = CWD.joinpath(arguments.b_bench_build_folder_name)
+    if not os.path.isdir(BUILD_PATH):
+        print("Error: build path %s does not exist ..." % BUILD_PATH)
+        sys.exit(-1)
+
     # Open json file
-    stats_file_name = STATS_PATH.joinpath('%s.json' % time.strftime("%Y%m%d_%H%M%S"))
+    if arguments.b_bench_file_name is not None:
+        stats_file_name = arguments.b_bench_file_name
+    else:
+        stats_file_name = STATS_PATH.joinpath('%s.json' % time.strftime("%Y%m%d_%H%M%S"))
     stats_file = open(stats_file_name, 'w')
     stats_file.write("[")
 
@@ -529,6 +535,13 @@ elif arguments.command == 'test':
     tempdir_obj = None
     tempdir_name = None
 
+    # Override build folder if asked to
+    if arguments.b_test_build_folder_name is not None:
+        BUILD_PATH = CWD.joinpath(arguments.b_test_build_folder_name)
+    if not os.path.isdir(BUILD_PATH):
+        print("Error: build path %s does not exist ..." % BUILD_PATH)
+        sys.exit(-1)
+
     def signal_handler(sig, frame):
         print('You pressed Ctrl+C! Exiting')
         sys.exit(0)
@@ -560,25 +573,35 @@ elif arguments.command == 'test':
     # Register the signal handler
     signal.signal(signal.SIGINT, signal_handler)
 
-    # Register At exist handler
+    # Register At exit handler
     atexit.register(cleanup_stuff)
 
+    compare_kat_zip = False
     if arguments.compare_kat != None:
-        import zipfile
-        try:
-            zf = zipfile.ZipFile(arguments.compare_kat)
-            tempdir_obj = tempdir()
-            tempdir_name = str(tempdir_obj)
-            zf.extractall(tempdir_name)
-        except:
-            print("Error: cannot handle provided ZIP package %s" % arguments.compare_kat)
-            sys.exit(-1)
-        # The uncompressed folder should contain a KAT folder
-        KAT_Folder = tempdir_name + "/submission_package_v2/KAT"
-        if not os.path.isdir(KAT_Folder):
-            print("Error: no KAT folder in the uncompressed ZIP package %s" % arguments.compare_kat)
-            sys.exit(-1)
-        print("[+] KAT folder found in the provided ZIP package %s" % arguments.compare_kat)
+        # Is it a zip file or a folder?
+        if ".zip" in arguments.compare_kat:
+            import zipfile
+            try:
+                zf = zipfile.ZipFile(arguments.compare_kat)
+                tempdir_obj = tempdir()
+                tempdir_name = str(tempdir_obj)
+                zf.extractall(tempdir_name)
+            except:
+                print("Error: cannot handle provided ZIP package %s" % arguments.compare_kat)
+                sys.exit(-1)
+            # The uncompressed folder should contain a KAT folder
+            KAT_Folder = tempdir_name + "/submission_package_v2/KAT"
+            if not os.path.isdir(KAT_Folder):
+                print("Error: no KAT folder in the uncompressed ZIP package %s" % arguments.compare_kat)
+                sys.exit(-1)
+            print("[+] KAT folder found in the provided ZIP package %s" % arguments.compare_kat)
+            compare_kat_zip = True
+        else:
+            # See if the folder exists
+            if not os.path.isdir(arguments.compare_kat):
+                print("Error: KAT folder %s does not exist" % arguments.compare_kat)
+                sys.exit(-1)
+            KAT_Folder = arguments.compare_kat
 
     def handle_scheme_test(scheme):
         print(f'[+] {scheme.get_label()}')
@@ -612,10 +635,19 @@ elif arguments.command == 'test':
         # Compare the KAT with an existing reference one?
         if KAT_Folder is not None:
             # Check that we indeed have the KAT for the tested scheme
-            scheme_name = 'mqom2_%s' % scheme.get_label()
+            if compare_kat_zip:
+                scheme_name = 'mqom2_%s' % scheme.get_label()
+            else:
+                scheme_name = '%s' % scheme.get_label()
+                CHECK_KAT_file_name_scheme = KAT_Folder + "/" + scheme_name + "/" + "PQCsignKAT_" + str(data['sk_size']) + ".rsp"
+                if not os.path.exists(CHECK_KAT_file_name_scheme):
+                    scheme_name = 'mqom2_%s' % scheme.get_label()
             # Check that our KAT files exist
             KAT_file_name_scheme = KAT_Folder + "/" + scheme_name + "/" + "PQCsignKAT_" + str(data['sk_size']) + ".rsp"
             KAT_file_name_scheme_generated = str(scheme.dst_path) + "/" + "PQCsignKAT_" + str(data['sk_size']) + ".rsp"
+            if not os.path.exists(KAT_file_name_scheme):
+                print("Error: KAT file %s not found ..." % KAT_file_name_scheme)
+                sys.exit(-1)
             # Now make a bin diff between the two files
             if filecmp.cmp(KAT_file_name_scheme, KAT_file_name_scheme_generated) is True:
                 print(' - KAT check with reference KAT: ok (for %s)' % scheme.get_label())

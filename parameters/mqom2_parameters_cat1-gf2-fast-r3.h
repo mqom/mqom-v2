@@ -2,6 +2,7 @@
 #define __MQOM2_PARAMETERS_H__
 
 #define MQOM2_PARAM_LABEL "MQOM2-L1-gf2-fast-r3"
+#define MQOM2_PARAM_KAT cat1_gf2_fast_r3
 
 #ifndef MQOM2_PARAM_SECURITY
 #define MQOM2_PARAM_SECURITY 128

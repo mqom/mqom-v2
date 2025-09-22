@@ -1,6 +1,13 @@
 #ifndef __RIJDAEL_PLATFORM_H__
 #define __RIJDAEL_PLATFORM_H__
 
+/* Defined when we want to overload some low-level APIs */
+#if defined(USE_WEAK_LOW_LEVEL_API)
+#define WEAK __attribute__((weak))
+#else
+#define WEAK
+#endif
+
 /* Select the best Rijndael implementation depending on the platform if
  * not overloaded by the user */
 #if !defined(RIJNDAEL_CONSTANT_TIME_REF) && !defined(RIJNDAEL_TABLE) && !defined(RIJNDAEL_AES_NI) && !defined(RIJNDAEL_BITSLICE)

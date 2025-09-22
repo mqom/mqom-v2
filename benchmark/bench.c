@@ -134,6 +134,9 @@ int main(int argc, char *argv[]) {
     printf("Correctness: %d/%d\n", score, nb_tests);
     printf("\n");
 
+    print_alloc_usage("keygen+sign+verif");
+    printf("\n");
+
     printf("Timing in ms:\n");
     printf(" - Key Gen: %.2f ms (std=%.2f)\n",
         btimer_get(&timers_algos[B_KEY_GENERATION]),
@@ -167,22 +170,19 @@ int main(int argc, char *argv[]) {
     #ifdef BENCHMARK
     printf("\n===== DETAILED BENCHMARK =====\n");
     printf(" - Signing\n");
-    display_timer("ExpandMQ", BS_EXPAND_MQ);
     display_timer("BLC.Commit", BS_BLC_COMMIT);
     display_timer("[BLC.Commit] Expand Trees", BS_BLC_EXPAND_TREE);
-    display_timer("[BLC.Commit] KeySch. Commit", BS_BLC_KEYSCH_COMMIT);
     display_timer("[BLC.Commit] Seed Commit", BS_BLC_SEED_COMMIT);
     display_timer("[BLC.Commit] PRG", BS_BLC_PRG);
     display_timer("[BLC.Commit] XOF", BS_BLC_XOF);
     display_timer("[BLC.Commit] Arithm", BS_BLC_ARITH);
-    display_timer("[BLC.Commit] Global XOF", BS_BLC_GLOBAL_XOF);
     display_timer("PIOP.Compute", BS_PIOP_COMPUTE);
+    display_timer("[PIOP.Compute] ExpandMQ", BS_PIOP_EXPAND_MQ);
     display_timer("[PIOP.Compute] Expand Batching Mat", BS_PIOP_EXPAND_BATCHING_MAT);
     display_timer("[PIOP.Compute] Matrix Mul Ext", BS_PIOP_MAT_MUL_EXT);
     display_timer("[PIOP.Compute] Compute t1", BS_PIOP_COMPUTE_T1);
     display_timer("[PIOP.Compute] Compute P_zi", BS_PIOP_COMPUTE_PZI);
-    display_timer("[PIOP.Compute] Batch", BS_PIOP_BATCH);
-    display_timer("[PIOP.Compute] Add Masks", BS_PIOP_ADD_MASKS);
+    display_timer("[PIOP.Compute] Batch and Mask", BS_PIOP_BATCH_AND_MASK);
     display_timer("Sample Challenge", BS_SAMPLE_CHALLENGE);
     display_timer("BLC.Open", BS_BLC_OPEN);
     printf(" - Others\n");

@@ -21,94 +21,6 @@
 #define BYTE_SIZE_FIELD_BASE(num) (((num) * FIELD_BASE_LOG2_CARD) / 8)
 #define BYTE_SIZE_FIELD_EXT(num)  (((num) * FIELD_EXT_LOG2_CARD) / 8)
 
-/* ==== Packing primitives ====== */
-static inline void field_gf2_vect_pack(uint8_t elt, uint8_t *packed_elt, uint32_t index)
-{
-	packed_elt[index / 8] &= ~(1 << (index % 8));
-	packed_elt[index / 8] |= (elt << (index % 8));
-	return;
-}
-static inline void field_gf256_vect_pack(uint8_t elt, uint8_t *packed_elt, uint32_t index)
-{
-	packed_elt[index] = elt;
-	return;
-}
-static inline void field_gf256to2_vect_pack(uint16_t elt, uint16_t *packed_elt, uint32_t index)
-{
-	packed_elt[index] = elt;
-	return;
-}
-
-
-/* ==== String parsing primitives ====== */
-static inline void field_gf2_parse(const uint8_t *in_string, uint32_t num_bits, uint8_t *elements)
-{
-	uint32_t num_bytes = num_bits / 8;
-	uint8_t leftover = (uint8_t)(num_bits % 8);
-	
-	/* Memcpy as much elements as we can */
-	memcpy(elements, in_string, num_bytes);
-	/* Deal with the possible last left over bits */
-	if(leftover){
-		uint8_t mask = ((1 << leftover) - 1);
-		elements[num_bytes] = in_string[num_bytes] & mask;
-	}
-	return;
-}
-static inline void field_gf256_parse(const uint8_t *in_string, uint32_t num, uint8_t *elements)
-{
-	/* Since we map bytes, this is simply a memcpy */
-	memcpy(elements, in_string, num);
-	return;
-}
-static inline void field_gf256to2_parse(const uint8_t *in_string, uint32_t num, uint16_t *elements)
-{
-	if(!arch_is_big_endian()){
-		/* For little endian platforms, this is a memcpy */
-		memcpy(elements, in_string, (2 * num));
-	}
-	else{
-		/* For big endian platforms, we have to reverse the bytes */
-		uint32_t i;
-		for(i = 0; i < (2 * num); i += 2){
-			elements[i / 2] = (in_string[i + 1] << 8) | in_string[i];
-		}
-	}
-	return;
-}
-
-
-/* ==== Serialization primitives ====== */
-static inline void field_gf2_serialize(const uint8_t *elements, uint32_t num, uint8_t *out_string)
-{
-	/* This is simply a memcpy 
-         * NOTE: in the serialization cases, we only deal with number of bits multiple of bytes
-   	 * */
-	memcpy(out_string, elements, (num / 8));
-	return;
-}
-static inline void field_gf256_serialize(const uint8_t *elements, uint32_t num, uint8_t *out_string)
-{
-	/* This is simply a memcpy */
-	memcpy(out_string, elements, num);
-	return;
-}
-static inline void field_gf256to2_serialize(const uint16_t *elements, uint32_t num, uint8_t *out_string)
-{
-	if(!arch_is_big_endian()){
-		/* For little endian platforms, this is a memcpy */
-		memcpy(out_string, elements, (2 * num));
-	}
-	else{
-		/* For big endian platforms, we have to reverse the bytes */
-		uint32_t i;
-		for(i = 0; i < (2 * num); i += 2){
-			out_string[i]   = (elements[i / 2] & 0xff);
-			out_string[i+1] = (elements[i / 2] >> 8);
-		}
-	}
-	return;
-}
 
 /* Adapt our types definition depending on the parameters */
 /* ==== Base field definition ====== */
@@ -118,21 +30,28 @@ typedef uint8_t field_base_elt; /* GF(2) */
 #define FIELD_BASE_PREFIX gf2
 #define FIELD_BASE_LOG2_CARD 1
 #define FIELD_BASE_PACKING(num) ((num) / 8)
-#define field_base_vect_pack field_gf2_vect_pack
-#define field_base_parse field_gf2_parse
-#define field_base_serialize field_gf2_serialize
+/* ==== Base field is GF(4) */
+#elif MQOM2_PARAM_BASE_FIELD == 2
+typedef uint8_t field_base_elt; /* GF(4) */
+#define FIELD_BASE_PREFIX gf4
+#define FIELD_BASE_LOG2_CARD 2
+#define FIELD_BASE_PACKING(num) ((num) / 4)
+/* ==== Base field is GF(16) */
+#elif MQOM2_PARAM_BASE_FIELD == 4
+typedef uint8_t field_base_elt; /* GF(16) */
+#define FIELD_BASE_PREFIX gf16
+#define FIELD_BASE_LOG2_CARD 4
+#define FIELD_BASE_PACKING(num) ((num) / 2)
 /* ==== Base field is GF(256) */
 #elif MQOM2_PARAM_BASE_FIELD == 8 
 typedef uint8_t field_base_elt; /* GF(256) */
 #define FIELD_BASE_PREFIX gf256
 #define FIELD_BASE_LOG2_CARD 8
 #define FIELD_BASE_PACKING(num) (num)
-#define field_base_vect_pack field_gf256_vect_pack
-#define field_base_parse field_gf256_parse
-#define field_base_serialize field_gf256_serialize
 #else
-#error "Error: MQOM2_PARAM_BASE_FIELD is neither GF(2) nor GF(256)! Please choose one of those"
+#error "Error: MQOM2_PARAM_BASE_FIELD is neither GF(2), nor GF(4), nor GF(16), nor GF(256)! Please choose one of those"
 #endif
+
 
 /* ==== Extension field definition ====== */
 /* ==== Extension field is GF(256) */
@@ -141,41 +60,16 @@ typedef uint8_t field_ext_elt; /* GF(256) */
 #define FIELD_EXT_PREFIX gf256
 #define FIELD_EXT_LOG2_CARD 8
 #define FIELD_EXT_PACKING(num) (num)
-#define field_ext_vect_pack field_gf256_vect_pack
-#define field_ext_parse field_gf256_parse
-#define field_ext_serialize field_gf256_serialize
 /* ==== Base field is GF(256^2) */
 #elif MQOM2_PARAM_EXT_FIELD == 16
 typedef uint16_t field_ext_elt; /* GF(256^2) = GF(2^16) */
 #define FIELD_EXT_PREFIX gf256to2
 #define FIELD_EXT_LOG2_CARD 16
 #define FIELD_EXT_PACKING(num) (num)
-#define field_ext_vect_pack field_gf256to2_vect_pack
-#define field_ext_parse field_gf256to2_parse
-#define field_ext_serialize field_gf256to2_serialize
 #else
 #error "Error: MQOM2_PARAM_EXT_FIELD is neither GF(256) nor GF(256^2)! Please choose one of those"
 #endif
 
-/* Field extension basis */
-#if MQOM2_PARAM_BASE_FIELD == 1
-#if MQOM2_PARAM_EXT_FIELD == 8
-static field_ext_elt ext_basis[8] = {1, 2, 4, 8, 16, 32, 64, 128};
-#elif MQOM2_PARAM_EXT_FIELD == 16
-static field_ext_elt ext_basis[16] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768};
-#endif
-#elif MQOM2_PARAM_BASE_FIELD == 8
-#if MQOM2_PARAM_EXT_FIELD == 8
-static field_ext_elt ext_basis[1] = {1};
-#elif MQOM2_PARAM_EXT_FIELD == 16
-static field_ext_elt ext_basis[2] = {1, 256};
-#endif
-#endif
-/* Dummy function to avoid "unused variable" warning for ext_basis */
-static inline void _field_ext_basis_dummy(void)
-{
-	(void)ext_basis;
-}
 
 /* Some helper to deal with false "hybrid" GF(256) and GF(256) situations */
 /**/
@@ -187,14 +81,15 @@ static inline void _field_ext_basis_dummy(void)
 #define gf256_gf256_vect_mult_avx2 gf256_vect_mult_avx2
 #define gf256_gf256_mat_mult_avx2 gf256_mat_mult_avx2
 /**/
-#define gf256_gf256_constant_vect_mult_gfni gf256_constant_vect_mult_gfni
-#define gf256_gf256_vect_mult_gfni gf256_vect_mult_gfni
-#define gf256_gf256_mat_mult_gfni gf256_mat_mult_gfni
+#define gf256_gf256_constant_vect_mult_avx512 gf256_constant_vect_mult_avx512
+#define gf256_gf256_vect_mult_avx512 gf256_vect_mult_avx512
+#define gf256_gf256_mat_mult_avx512 gf256_mat_mult_avx512
+
 
 /* This file adapts the fields definition depending on the compilation */
-#if !defined(FIELDS_REF) && !defined(FIELDS_AVX2) && !defined(FIELDS_GFNI)
-    #if defined(__GFNI__) && defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VL__) && defined(__AVX512VPOPCNTDQ__)
-        #define FIELDS_GFNI
+#if !defined(FIELDS_REF) && !defined(FIELDS_AVX2) && !defined(FIELDS_AVX512)
+    #if defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512VL__) && defined(__AVX512VPOPCNTDQ__) && defined(__AVX512VBMI__)
+        #define FIELDS_AVX512
     #else
         #ifdef __AVX2__
             #define FIELDS_AVX2
@@ -204,29 +99,46 @@ static inline void _field_ext_basis_dummy(void)
     #endif
 #endif
 
+#include "fields_handling.h"
 #if defined(FIELDS_REF)
 #include "fields_ref.h"
+#if defined(USE_GF256_TABLE_MULT)
+#if defined(GF256_MULT_TABLE_SRAM)
+static const char fields_conf[] = "Fields ref implementation with (NON constant time) 65 kB GF(256) mult table in SRAM (pure C)";
+#else
+static const char fields_conf[] = "Fields ref implementation with (NON constant time) 65 kB GF(256) mult table in flash/ROM (pure C)";
+#endif
+#elif defined(USE_GF256_TABLE_LOG_EXP)
+static const char fields_conf[] = "Fields ref implementation with (constant time on embedded platforms without cache to SRAM) log/exp GF(256) mult tables (pure C)";
+#else
 static const char fields_conf[] = "Fields ref implementation (pure C)";
+#endif
 #define FIELD_IMPLEMENTATION_SUFFIX ref
 #elif defined(FIELDS_AVX2)
 #include "fields_avx2.h"
 static const char fields_conf[] = "Fields AVX2 implementation";
 #define FIELD_IMPLEMENTATION_SUFFIX avx2
-#elif defined(FIELDS_GFNI)
-#include "fields_gfni.h"
-static const char fields_conf[] = "Fields AVX512/GFNI implementation";
-#define FIELD_IMPLEMENTATION_SUFFIX gfni
+#elif defined(FIELDS_AVX512)
+#include "fields_avx512.h"
+static const char fields_conf[] = "Fields AVX512 implementation";
+#define FIELD_IMPLEMENTATION_SUFFIX avx512
 #else
   #error "Error: no low-level field implementation detected ..."
 #endif
 
+
 /* Now construct our base operations by constructing our low-level
  * functions depending on the prefix (fields types) and suffix (implementation) */
-/* Base field operations */
-#define _field_base_mult concat3(FIELD_BASE_PREFIX, _mult_, FIELD_IMPLEMENTATION_SUFFIX)
-#define _field_base_constant_vect_mult concat3(FIELD_BASE_PREFIX, _constant_vect_mult_, FIELD_IMPLEMENTATION_SUFFIX)
-#define _field_base_vect_mult concat3(FIELD_BASE_PREFIX, _vect_mult_, FIELD_IMPLEMENTATION_SUFFIX)
-#define _field_base_mat_mult concat3(FIELD_BASE_PREFIX, _mat_mult_, FIELD_IMPLEMENTATION_SUFFIX)
+/* Base field handling */
+#define field_base_vect_pack concat3(field_, FIELD_BASE_PREFIX, _vect_pack)
+#define field_base_vect_unpack concat3(field_, FIELD_BASE_PREFIX, _vect_unpack)
+#define field_base_parse concat3(field_, FIELD_BASE_PREFIX, _parse)
+#define field_base_serialize concat3(field_, FIELD_BASE_PREFIX, _serialize)
+/* Extension field handling */
+#define field_ext_vect_pack concat3(field_, FIELD_EXT_PREFIX, _vect_pack)
+#define field_ext_vect_unpack concat3(field_, FIELD_EXT_PREFIX, _vect_unpack)
+#define field_ext_parse concat3(field_, FIELD_EXT_PREFIX, _parse)
+#define field_ext_serialize concat3(field_, FIELD_EXT_PREFIX, _serialize)
 /* Extension field operations */
 #define _field_ext_mult concat3(FIELD_EXT_PREFIX, _mult_, FIELD_IMPLEMENTATION_SUFFIX)
 #define _field_ext_constant_vect_mult concat3(FIELD_EXT_PREFIX, _constant_vect_mult_, FIELD_IMPLEMENTATION_SUFFIX)
@@ -237,35 +149,10 @@ static const char fields_conf[] = "Fields AVX512/GFNI implementation";
 #define _field_ext_base_constant_vect_mult concat5(FIELD_EXT_PREFIX, _, FIELD_BASE_PREFIX, _constant_vect_mult_, FIELD_IMPLEMENTATION_SUFFIX)
 #define _field_base_ext_vect_mult concat5(FIELD_BASE_PREFIX, _, FIELD_EXT_PREFIX, _vect_mult_, FIELD_IMPLEMENTATION_SUFFIX)
 #define _field_ext_base_vect_mult concat5(FIELD_EXT_PREFIX, _, FIELD_BASE_PREFIX, _vect_mult_, FIELD_IMPLEMENTATION_SUFFIX)
-#define _field_base_ext_mat_mult concat5(FIELD_BASE_PREFIX, _, FIELD_EXT_PREFIX, _mat_mult_, FIELD_IMPLEMENTATION_SUFFIX)
 #define _field_ext_base_mat_mult concat5(FIELD_EXT_PREFIX, _, FIELD_BASE_PREFIX, _mat_mult_, FIELD_IMPLEMENTATION_SUFFIX)
-/* Matrix transposition */
-#define _field_base_mat_transpose concat3(FIELD_BASE_PREFIX, _mat_transpose_, FIELD_IMPLEMENTATION_SUFFIX)
-#define _field_ext_mat_transpose concat3(FIELD_EXT_PREFIX, _mat_transpose_, FIELD_IMPLEMENTATION_SUFFIX)
+
 
 /* Public API */
-static inline field_base_elt field_base_mult(field_base_elt a, field_base_elt b)
-{
-	return _field_base_mult(a, b);
-}
-
-static inline void field_base_constant_vect_mult(field_base_elt a, const field_base_elt *b, field_base_elt *c, uint32_t len)
-{
-	_field_base_constant_vect_mult(a, b, c, len);
-	return;
-}
-
-static inline field_base_elt field_base_vect_mult(const field_base_elt *a, const field_base_elt *b, uint32_t len)
-{
-	return _field_base_vect_mult(a, b, len);
-}
-
-static inline void field_base_mat_mult(const field_base_elt *A, const field_base_elt *X, field_base_elt *Y, uint32_t n, matrix_type mtype)
-{
-	_field_base_mat_mult(A, X, Y, n, mtype);
-	return;
-}
-
 static inline field_ext_elt field_ext_mult(field_ext_elt a, field_ext_elt b)
 {
 	return _field_ext_mult(a, b);
@@ -300,16 +187,9 @@ static inline void field_ext_base_constant_vect_mult(field_ext_elt a, const fiel
 	return;
 }
 
-
 static inline field_ext_elt field_base_ext_vect_mult(const field_base_elt *a, const field_ext_elt *b, uint32_t len)
 {
 	return _field_base_ext_vect_mult(a, b, len);
-}
-
-static inline void field_base_ext_mat_mult(const field_base_elt *A, const field_ext_elt *X, field_ext_elt *Y, uint32_t n, matrix_type mtype)
-{
-	_field_base_ext_mat_mult(A, X, Y, n, mtype);
-	return;
 }
 
 static inline field_ext_elt field_ext_base_vect_mult(const field_ext_elt *a, const field_base_elt *b, uint32_t len)
@@ -320,18 +200,6 @@ static inline field_ext_elt field_ext_base_vect_mult(const field_ext_elt *a, con
 static inline void field_ext_base_mat_mult(const field_ext_elt *A, const field_base_elt *X, field_ext_elt *Y, uint32_t n, matrix_type mtype)
 {
 	_field_ext_base_mat_mult(A, X, Y, n, mtype);
-	return;
-}
-
-static inline void field_base_mat_transpose(const field_base_elt *A, field_base_elt *B, uint32_t n, matrix_type mtype)
-{
-	_field_base_mat_transpose(A, B, n, mtype);
-	return;
-}
-
-static inline void field_ext_mat_transpose(const field_ext_elt *A, field_ext_elt *B, uint32_t n, matrix_type mtype)
-{
-	_field_ext_mat_transpose(A, B, n, mtype);
 	return;
 }
 
@@ -360,7 +228,21 @@ static inline void field_ext_vect_add(const field_ext_elt *a, const field_ext_el
 }
 
 static inline field_ext_elt get_evaluation_point(uint16_t i) {
-	return (field_ext_elt) i;
+	// Gray code
+	return (field_ext_elt) (i ^ (i>>1));
+}
+
+static inline uint8_t get_gray_code_bit_position(uint16_t i) {
+    uint32_t g1 = i ^ (i >> 1);
+    uint32_t g2 = (i+1 < MQOM2_PARAM_NB_EVALS) ? (i + 1) ^ ((i + 1) >> 1) : 0;
+    uint32_t diff = g1 ^ g2;
+
+	uint8_t index = 0;
+    while ((diff & 1) == 0) {
+        diff >>= 1;
+        index++;
+    }
+    return index;
 }
 
 #endif /* __FIELDS_H__ */

@@ -1,6 +1,7 @@
 #ifndef __PRG_CACHE_H__
 #define __PRG_CACHE_H__
 
+#include <common.h>
 #include <stdlib.h>
 #include "enc.h"
 
@@ -20,19 +21,19 @@ typedef struct {
 static inline void destroy_prg_cache(prg_key_sched_cache *cache)
 {   
         if(cache != NULL){
-                free(cache);
+                mqom_free(cache);
         }
 }
 
-static inline uint8_t is_entry_active(const prg_key_sched_cache *cache, uint32_t i){
+static inline uint8_t is_entry_active_prg_cache(const prg_key_sched_cache *cache, uint32_t i){
 	return (cache != NULL) ? cache[i].active : 0;
 }
 
-static inline void get_entry(const prg_key_sched_cache *cache, uint32_t i, enc_ctx *ctx){
+static inline void get_entry_prg_cache(const prg_key_sched_cache *cache, uint32_t i, enc_ctx *ctx){
 	(*ctx) = cache[i].ctx;
 }
 
-static inline void set_entry(prg_key_sched_cache *cache, uint32_t i, const enc_ctx *ctx){
+static inline void set_entry_prg_cache(prg_key_sched_cache *cache, uint32_t i, const enc_ctx *ctx){
 	if(cache != NULL){
 		cache[i].ctx = (*ctx);
 		cache[i].active = 1;
@@ -45,7 +46,7 @@ static inline prg_key_sched_cache *init_prg_cache(uint32_t n_bytes)
 	prg_key_sched_cache *prg_cache = NULL;
 
 #ifdef USE_PRG_CACHE
-	prg_cache = (prg_key_sched_cache*)calloc(CEIL(n_bytes, MQOM2_PARAM_SEED_SIZE), sizeof(prg_key_sched_cache));
+	prg_cache = (prg_key_sched_cache*)mqom_calloc(CEIL(n_bytes, MQOM2_PARAM_SEED_SIZE), sizeof(prg_key_sched_cache));
 	if(prg_cache == NULL){
 		goto err;
 	}

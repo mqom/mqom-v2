@@ -329,22 +329,22 @@ err:
 
 /* ==== Public APIs ===== */
 
-int aes128_ref_setkey_enc(rijndael_ref_ctx *ctx, const uint8_t key[16])
+WEAK int aes128_ref_setkey_enc(rijndael_ref_ctx *ctx, const uint8_t key[16])
 {
 	return rijndael_setkey_enc(ctx, key, AES128);
 }
 
-int aes256_ref_setkey_enc(rijndael_ref_ctx *ctx, const uint8_t key[32])
+WEAK int aes256_ref_setkey_enc(rijndael_ref_ctx *ctx, const uint8_t key[32])
 {
 	return rijndael_setkey_enc(ctx, key, AES256);
 }
 
-int rijndael256_ref_setkey_enc(rijndael_ref_ctx *ctx, const uint8_t key[32])
+WEAK int rijndael256_ref_setkey_enc(rijndael_ref_ctx *ctx, const uint8_t key[32])
 {
 	return rijndael_setkey_enc(ctx, key, RIJNDAEL_256_256);
 }
 
-int aes128_ref_enc(const rijndael_ref_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
+WEAK int aes128_ref_enc(const rijndael_ref_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
 {
 	int ret = -1;
 
@@ -358,7 +358,7 @@ err:
 	return ret;
 }
 
-int aes128_ref_enc_x2(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
+WEAK int aes128_ref_enc_x2(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
 {
 	int ret;
 
@@ -368,7 +368,7 @@ int aes128_ref_enc_x2(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2
 	return ret;
 }
 
-int aes128_ref_enc_x4(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const rijndael_ref_ctx *ctx3, const rijndael_ref_ctx *ctx4,
+WEAK int aes128_ref_enc_x4(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const rijndael_ref_ctx *ctx3, const rijndael_ref_ctx *ctx4,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16])
 {
@@ -382,7 +382,20 @@ int aes128_ref_enc_x4(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2
 	return ret;
 }
 
-int aes256_ref_enc(const rijndael_ref_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
+WEAK int aes128_ref_enc_x8(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const rijndael_ref_ctx *ctx3, const rijndael_ref_ctx *ctx4,
+                  const rijndael_ref_ctx *ctx5, const rijndael_ref_ctx *ctx6, const rijndael_ref_ctx *ctx7, const rijndael_ref_ctx *ctx8,
+                const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
+                const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
+                uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
+                uint8_t cipherText5[16], uint8_t cipherText6[16], uint8_t cipherText7[16], uint8_t cipherText8[16])
+{
+	int ret = 0;
+        ret |= aes128_ref_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
+        ret |= aes128_ref_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
+	return ret;
+}
+
+WEAK int aes256_ref_enc(const rijndael_ref_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
 {
 	int ret = -1;
 
@@ -396,7 +409,7 @@ err:
 	return ret;
 }
 
-int aes256_ref_enc_x2(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
+WEAK int aes256_ref_enc_x2(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
 {
 	int ret;
 
@@ -407,7 +420,7 @@ int aes256_ref_enc_x2(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2
 }
 
 
-int aes256_ref_enc_x4(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const rijndael_ref_ctx *ctx3, const rijndael_ref_ctx *ctx4,
+WEAK int aes256_ref_enc_x4(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const rijndael_ref_ctx *ctx3, const rijndael_ref_ctx *ctx4,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16])
 {
@@ -421,7 +434,20 @@ int aes256_ref_enc_x4(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2
 	return ret;
 }
 
-int rijndael256_ref_enc(const rijndael_ref_ctx *ctx, const uint8_t data_in[32], uint8_t data_out[32])
+WEAK int aes256_ref_enc_x8(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const rijndael_ref_ctx *ctx3, const rijndael_ref_ctx *ctx4,
+                  const rijndael_ref_ctx *ctx5, const rijndael_ref_ctx *ctx6, const rijndael_ref_ctx *ctx7, const rijndael_ref_ctx *ctx8,
+                const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
+                const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
+                uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
+                uint8_t cipherText5[16], uint8_t cipherText6[16], uint8_t cipherText7[16], uint8_t cipherText8[16])
+{       
+	int ret = 0;
+        ret |= aes256_ref_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
+        ret |= aes256_ref_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
+	return ret;
+}
+
+WEAK int rijndael256_ref_enc(const rijndael_ref_ctx *ctx, const uint8_t data_in[32], uint8_t data_out[32])
 {
 	int ret = -1;
 
@@ -435,7 +461,7 @@ err:
 	return ret;
 }
 
-int rijndael256_ref_enc_x2(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2,
+WEAK int rijndael256_ref_enc_x2(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2,
                         const uint8_t plainText1[32], const uint8_t plainText2[32],
                         uint8_t cipherText1[32], uint8_t cipherText2[32])
 {
@@ -449,7 +475,7 @@ int rijndael256_ref_enc_x2(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx 
 }
 
 
-int rijndael256_ref_enc_x4(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const rijndael_ref_ctx *ctx3, const rijndael_ref_ctx *ctx4,
+WEAK int rijndael256_ref_enc_x4(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const rijndael_ref_ctx *ctx3, const rijndael_ref_ctx *ctx4,
                 const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
                 uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32])
 {
@@ -460,6 +486,19 @@ int rijndael256_ref_enc_x4(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx 
 	ret |= rijndael256_ref_enc(ctx3, plainText3, cipherText3);
 	ret |= rijndael256_ref_enc(ctx4, plainText4, cipherText4);
 
+	return ret;
+}
+
+WEAK int rijndael256_ref_enc_x8(const rijndael_ref_ctx *ctx1, const rijndael_ref_ctx *ctx2, const rijndael_ref_ctx *ctx3, const rijndael_ref_ctx *ctx4,
+                  const rijndael_ref_ctx *ctx5, const rijndael_ref_ctx *ctx6, const rijndael_ref_ctx *ctx7, const rijndael_ref_ctx *ctx8,
+                const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
+                const uint8_t plainText5[32], const uint8_t plainText6[32], const uint8_t plainText7[32], const uint8_t plainText8[32],
+                uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32],
+                uint8_t cipherText5[32], uint8_t cipherText6[32], uint8_t cipherText7[32], uint8_t cipherText8[32])
+{
+	int ret = 0;
+        ret |= rijndael256_ref_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
+        ret |= rijndael256_ref_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
 	return ret;
 }
 

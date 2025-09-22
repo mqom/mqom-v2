@@ -21,10 +21,14 @@
 
 /* === Base field GF(2) === */
 #if MQOM2_PARAM_BASE_FIELD == 1
+/* === Base field GF(4) === */
+#elif MQOM2_PARAM_BASE_FIELD == 2
+/* === Base field GF(15) === */
+#elif MQOM2_PARAM_BASE_FIELD == 4
 /* === Base field GF(256) === */
 #elif MQOM2_PARAM_BASE_FIELD == 8
 #else
-#error "Sorry, unsupported base field: must be one of 1, 8"
+#error "Sorry, unsupported base field: must be one of 1, 2, 4, 8"
 #endif
 
 #ifndef MQOM2_PARAM_TRADEOFF
@@ -66,6 +70,34 @@
                 #include "parameters/mqom2_parameters_cat1-gf2-fast-r5.h"
             #endif
         #endif
+    #elif MQOM2_PARAM_BASE_FIELD == 2
+        #if MQOM2_PARAM_TRADEOFF == 1
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat1-gf4-short-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat1-gf4-short-r5.h"
+            #endif
+        #elif MQOM2_PARAM_TRADEOFF == 0
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat1-gf4-fast-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat1-gf4-fast-r5.h"
+            #endif
+        #endif
+    #elif MQOM2_PARAM_BASE_FIELD == 4
+        #if MQOM2_PARAM_TRADEOFF == 1
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat1-gf16-short-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat1-gf16-short-r5.h"
+            #endif
+        #elif MQOM2_PARAM_TRADEOFF == 0
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat1-gf16-fast-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat1-gf16-fast-r5.h"
+            #endif
+        #endif
     #elif MQOM2_PARAM_BASE_FIELD == 8
         #if MQOM2_PARAM_TRADEOFF == 1
             #if MQOM2_PARAM_NBROUNDS == 3
@@ -97,6 +129,34 @@
                 #include "parameters/mqom2_parameters_cat3-gf2-fast-r5.h"
             #endif
         #endif
+    #elif MQOM2_PARAM_BASE_FIELD == 2
+        #if MQOM2_PARAM_TRADEOFF == 1
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat3-gf4-short-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat3-gf4-short-r5.h"
+            #endif
+        #elif MQOM2_PARAM_TRADEOFF == 0
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat3-gf4-fast-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat3-gf4-fast-r5.h"
+            #endif
+        #endif
+    #elif MQOM2_PARAM_BASE_FIELD == 4
+        #if MQOM2_PARAM_TRADEOFF == 1
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat3-gf16-short-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat3-gf16-short-r5.h"
+            #endif
+        #elif MQOM2_PARAM_TRADEOFF == 0
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat3-gf16-fast-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat3-gf16-fast-r5.h"
+            #endif
+        #endif
     #elif MQOM2_PARAM_BASE_FIELD == 8
         #if MQOM2_PARAM_TRADEOFF == 1
             #if MQOM2_PARAM_NBROUNDS == 3
@@ -126,6 +186,34 @@
                 #include "parameters/mqom2_parameters_cat5-gf2-fast-r3.h"
             #elif MQOM2_PARAM_NBROUNDS == 5
                 #include "parameters/mqom2_parameters_cat5-gf2-fast-r5.h"
+            #endif
+        #endif
+    #elif MQOM2_PARAM_BASE_FIELD == 2
+        #if MQOM2_PARAM_TRADEOFF == 1
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat5-gf4-short-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat5-gf4-short-r5.h"
+            #endif
+        #elif MQOM2_PARAM_TRADEOFF == 0
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat5-gf4-fast-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat5-gf4-fast-r5.h"
+            #endif
+        #endif
+    #elif MQOM2_PARAM_BASE_FIELD == 4
+        #if MQOM2_PARAM_TRADEOFF == 1
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat5-gf16-short-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat5-gf16-short-r5.h"
+            #endif
+        #elif MQOM2_PARAM_TRADEOFF == 0
+            #if MQOM2_PARAM_NBROUNDS == 3
+                #include "parameters/mqom2_parameters_cat5-gf16-fast-r3.h"
+            #elif MQOM2_PARAM_NBROUNDS == 5
+                #include "parameters/mqom2_parameters_cat5-gf16-fast-r5.h"
             #endif
         #endif
     #elif MQOM2_PARAM_BASE_FIELD == 8
