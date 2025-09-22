@@ -10,7 +10,7 @@
  * from  https://eprint.iacr.org/2016/714.pdf
  * NOTE: we do not need a constant time key schedule as only public data is used */
 extern void AES_128_keyschedule(const uint8_t *, uint8_t *);
-WEAK int aes128_ct64_setkey_enc(rijndael_ct64_ctx *ctx, const uint8_t key[16])
+WEAK int aes128_ct64_setkey_enc(rijndael_ct64_ctx_aes128 *ctx, const uint8_t key[16])
 {
         int ret = -1;
         uint8_t *rk;
@@ -29,20 +29,38 @@ err:
         return ret;
 }
 #else
-WEAK int aes128_ct64_setkey_enc(rijndael_ct64_ctx *ctx, const uint8_t key[16])
+WEAK int aes128_ct64_setkey_enc(rijndael_ct64_ctx_aes128 *ctx, const uint8_t key[16])
 {
-	return br_aes_ct64_keysched(ctx, key, AES128);
+	int ret = -1;
+
+	BR_AES_CT64_KEYSCHED(ctx, key, AES128);
+
+	ret = 0;
+err:
+	return ret;
 }
 #endif
 
-WEAK int aes256_ct64_setkey_enc(rijndael_ct64_ctx *ctx, const uint8_t key[32])
+WEAK int aes256_ct64_setkey_enc(rijndael_ct64_ctx_aes256 *ctx, const uint8_t key[32])
 {
-	return br_aes_ct64_keysched(ctx, key, AES256);
+	int ret = -1;
+
+	BR_AES_CT64_KEYSCHED(ctx, key, AES256);
+
+	ret = 0;
+err:
+	return ret;
 }
 
-WEAK int rijndael256_ct64_setkey_enc(rijndael_ct64_ctx *ctx, const uint8_t key[32])
+WEAK int rijndael256_ct64_setkey_enc(rijndael_ct64_ctx_rijndael256 *ctx, const uint8_t key[32])
 {
-	return br_aes_ct64_keysched(ctx, key, RIJNDAEL_256_256);
+	int ret = -1;
+
+	BR_AES_CT64_KEYSCHED(ctx, key, RIJNDAEL_256_256);
+
+	ret = 0;
+err:
+	return ret;
 }
 
 
@@ -157,7 +175,7 @@ void keys_packing(uint32_t* out, const unsigned char* in0,
 extern void aes128_encrypt_ffs(uint8_t* ctext, uint8_t* ctext_bis, const uint8_t* ptext,
                                const uint8_t* ptext_bis, const uint32_t* rkey); 
 
-WEAK int aes128_ct64_enc(const rijndael_ct64_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
+WEAK int aes128_ct64_enc(const rijndael_ct64_ctx_aes128 *ctx, const uint8_t data_in[16], uint8_t data_out[16])
 {
 	int ret = -1;
 	unsigned int i;	
@@ -178,7 +196,7 @@ err:
 	return ret;
 }
 
-WEAK int aes128_ct64_enc_x2(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
+WEAK int aes128_ct64_enc_x2(const rijndael_ct64_ctx_aes128 *ctx1, const rijndael_ct64_ctx_aes128 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
 {
 	int ret = -1;
 	unsigned int i;	
@@ -202,7 +220,7 @@ err:
 	return ret;
 }
 
-WEAK int aes128_ct64_enc_x4(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const rijndael_ct64_ctx *ctx3, const rijndael_ct64_ctx *ctx4,
+WEAK int aes128_ct64_enc_x4(const rijndael_ct64_ctx_aes128 *ctx1, const rijndael_ct64_ctx_aes128 *ctx2, const rijndael_ct64_ctx_aes128 *ctx3, const rijndael_ct64_ctx_aes128 *ctx4,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16])
 {
@@ -213,54 +231,75 @@ WEAK int aes128_ct64_enc_x4(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_c
 }
 
 #else
-WEAK int aes128_ct64_enc(const rijndael_ct64_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
+WEAK int aes128_ct64_enc(const rijndael_ct64_ctx_aes128 *ctx, const uint8_t data_in[16], uint8_t data_out[16])
 {
+	int ret = -1;
+
+	rijndael_ct64_ctx_aes128 *dummy_ctx = NULL;
+
 	if((ctx == NULL) || (ctx->rtype != AES128)){
-		return -1;
+		goto err;
 	}
-	return core_ct64_bitslice_encrypt(ctx, NULL, NULL, NULL,
+	CORE_CT64_BITSLICE_ENCRYPT(ctx, dummy_ctx, dummy_ctx, dummy_ctx,
         data_in, NULL, NULL, NULL,
         data_out, NULL, NULL, NULL);
+
+	ret = 0;
+err:
+	return ret;
 }
 
-WEAK int aes128_ct64_enc_x2(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
+WEAK int aes128_ct64_enc_x2(const rijndael_ct64_ctx_aes128 *ctx1, const rijndael_ct64_ctx_aes128 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
 {
+	int ret = -1;
+
+	rijndael_ct64_ctx_aes128 *dummy_ctx = NULL;
+
 	if((ctx1 == NULL) || (ctx1->rtype != AES128)){
-		return -1;
+		goto err;
 	}
 	if((ctx2 == NULL) || (ctx2->rtype != AES128)){
-		return -1;
+		goto err;
 	}
-	return core_ct64_bitslice_encrypt(ctx1, ctx2, NULL, NULL,
+	CORE_CT64_BITSLICE_ENCRYPT(ctx1, ctx2, dummy_ctx, dummy_ctx,
         plainText1, plainText2, NULL, NULL,
         cipherText1, cipherText2, NULL, NULL);
+
+	ret = 0;
+err:
+	return ret;
 }
 
-WEAK int aes128_ct64_enc_x4(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const rijndael_ct64_ctx *ctx3, const rijndael_ct64_ctx *ctx4,
+WEAK int aes128_ct64_enc_x4(const rijndael_ct64_ctx_aes128 *ctx1, const rijndael_ct64_ctx_aes128 *ctx2, const rijndael_ct64_ctx_aes128 *ctx3, const rijndael_ct64_ctx_aes128 *ctx4,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16])
 {
+	int ret = -1;
+
 	if((ctx1 == NULL) || (ctx1->rtype != AES128)){
-		return -1;
+		goto err;
 	}
 	if((ctx2 == NULL) || (ctx2->rtype != AES128)){
-		return -1;
+		goto err;
 	}
 	if((ctx3 == NULL) || (ctx3->rtype != AES128)){
-		return -1;
+		goto err;
 	}
 	if((ctx4 == NULL) || (ctx4->rtype != AES128)){
-		return -1;
+		goto err;
 	}
-
-	return core_ct64_bitslice_encrypt(ctx1, ctx2, ctx3, ctx4,
+	CORE_CT64_BITSLICE_ENCRYPT(ctx1, ctx2, ctx3, ctx4,
         plainText1, plainText2, plainText3, plainText4,
         cipherText1, cipherText2, cipherText3, cipherText4);
+
+	ret = 0;
+err:
+	return ret;
 }
 #endif
 
-WEAK int aes128_ct64_enc_x8(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const rijndael_ct64_ctx *ctx3, const rijndael_ct64_ctx *ctx4,
-                  const rijndael_ct64_ctx *ctx5, const rijndael_ct64_ctx *ctx6, const rijndael_ct64_ctx *ctx7, const rijndael_ct64_ctx *ctx8,
+WEAK int aes128_ct64_enc_x8(const rijndael_ct64_ctx_aes128 *ctx1, const rijndael_ct64_ctx_aes128 *ctx2, const rijndael_ct64_ctx_aes128 *ctx3, const rijndael_ct64_ctx_aes128 *ctx4,
+                  const rijndael_ct64_ctx_aes128 *ctx5, const rijndael_ct64_ctx_aes128 *ctx6, const rijndael_ct64_ctx_aes128 *ctx7, const rijndael_ct64_ctx_aes128 *ctx8,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
@@ -273,53 +312,74 @@ WEAK int aes128_ct64_enc_x8(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_c
 }
 
 // === AES-256 enc
-WEAK int aes256_ct64_enc(const rijndael_ct64_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16])
+WEAK int aes256_ct64_enc(const rijndael_ct64_ctx_aes256 *ctx, const uint8_t data_in[16], uint8_t data_out[16])
 {
+	int ret = -1;
+
+	rijndael_ct64_ctx_aes256 *dummy_ctx = NULL;
+
 	if((ctx == NULL) || (ctx->rtype != AES256)){
-		return -1;
+		goto err;
 	}
-	return core_ct64_bitslice_encrypt(ctx, NULL, NULL, NULL,
+	CORE_CT64_BITSLICE_ENCRYPT(ctx, dummy_ctx, dummy_ctx, dummy_ctx,
         data_in, NULL, NULL, NULL,
         data_out, NULL, NULL, NULL);
+
+	ret = 0;
+err:
+	return ret;
 }
 
-WEAK int aes256_ct64_enc_x2(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
+WEAK int aes256_ct64_enc_x2(const rijndael_ct64_ctx_aes256 *ctx1, const rijndael_ct64_ctx_aes256 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
 {
+	int ret = -1;
+
+	rijndael_ct64_ctx_aes256 *dummy_ctx = NULL;
+
 	if((ctx1 == NULL) || (ctx1->rtype != AES256)){
-		return -1;
+		goto err;
 	}
 	if((ctx2 == NULL) || (ctx2->rtype != AES256)){
-		return -1;
+		goto err;
 	}
-	return core_ct64_bitslice_encrypt(ctx1, ctx2, NULL, NULL,
+	CORE_CT64_BITSLICE_ENCRYPT(ctx1, ctx2, dummy_ctx, dummy_ctx,
         plainText1, plainText2, NULL, NULL,
         cipherText1, cipherText2, NULL, NULL);
+
+	ret = 0;
+err:
+	return ret;
 }
 
-WEAK int aes256_ct64_enc_x4(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const rijndael_ct64_ctx *ctx3, const rijndael_ct64_ctx *ctx4,
+WEAK int aes256_ct64_enc_x4(const rijndael_ct64_ctx_aes256 *ctx1, const rijndael_ct64_ctx_aes256 *ctx2, const rijndael_ct64_ctx_aes256 *ctx3, const rijndael_ct64_ctx_aes256 *ctx4,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16])
 {
+	int ret = -1;
+
 	if((ctx1 == NULL) || (ctx1->rtype != AES256)){
-		return -1;
+		goto err;
 	}
 	if((ctx2 == NULL) || (ctx2->rtype != AES256)){
-		return -1;
+		goto err;
 	}
 	if((ctx3 == NULL) || (ctx3->rtype != AES256)){
-		return -1;
+		goto err;
 	}
 	if((ctx4 == NULL) || (ctx4->rtype != AES256)){
-		return -1;
+		goto err;
 	}
-
-	return core_ct64_bitslice_encrypt(ctx1, ctx2, ctx3, ctx4,
+	CORE_CT64_BITSLICE_ENCRYPT(ctx1, ctx2, ctx3, ctx4,
         plainText1, plainText2, plainText3, plainText4,
         cipherText1, cipherText2, cipherText3, cipherText4);
+
+	ret = 0;
+err:
+	return ret;
 }
 
-WEAK int aes256_ct64_enc_x8(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const rijndael_ct64_ctx *ctx3, const rijndael_ct64_ctx *ctx4,
-                  const rijndael_ct64_ctx *ctx5, const rijndael_ct64_ctx *ctx6, const rijndael_ct64_ctx *ctx7, const rijndael_ct64_ctx *ctx8,
+WEAK int aes256_ct64_enc_x8(const rijndael_ct64_ctx_aes256 *ctx1, const rijndael_ct64_ctx_aes256 *ctx2, const rijndael_ct64_ctx_aes256 *ctx3, const rijndael_ct64_ctx_aes256 *ctx4,
+                  const rijndael_ct64_ctx_aes256 *ctx5, const rijndael_ct64_ctx_aes256 *ctx6, const rijndael_ct64_ctx_aes256 *ctx7, const rijndael_ct64_ctx_aes256 *ctx8,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
@@ -332,70 +392,81 @@ WEAK int aes256_ct64_enc_x8(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_c
 }
 
 // === Rijndael-256 enc
-WEAK int rijndael256_ct64_enc(const rijndael_ct64_ctx *ctx, const uint8_t data_in[32], uint8_t data_out[32])
-{
-	if((ctx == NULL) || (ctx->rtype != RIJNDAEL_256_256)){
-		return -1;
-	}
-	return core_ct64_bitslice_encrypt(ctx, NULL, NULL, NULL,
-        data_in, NULL, NULL, NULL,
-        data_out, NULL, NULL, NULL);
-}
-
-WEAK int rijndael256_ct64_enc_x2(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const uint8_t plainText1[32], const uint8_t plainText2[32], uint8_t cipherText1[32], uint8_t cipherText2[32])
-{
-	if((ctx1 == NULL) || (ctx1->rtype != RIJNDAEL_256_256)){
-		return -1;
-	}
-	if((ctx2 == NULL) || (ctx2->rtype != RIJNDAEL_256_256)){
-		return -1;
-	}
-	return core_ct64_bitslice_encrypt(ctx1, ctx2, NULL, NULL,
-        plainText1, plainText2, NULL, NULL,
-        cipherText1, cipherText2, NULL, NULL);
-}
-
-WEAK int rijndael256_ct64_enc_x4(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const rijndael_ct64_ctx *ctx3, const rijndael_ct64_ctx *ctx4,
-                const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
-                uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32])
+WEAK int rijndael256_ct64_enc(const rijndael_ct64_ctx_rijndael256 *ctx, const uint8_t data_in[32], uint8_t data_out[32])
 {
 	int ret = -1;
 
-	if((ctx1 == NULL) || (ctx1->rtype != RIJNDAEL_256_256)){
-		return -1;
-	}
-	if((ctx2 == NULL) || (ctx2->rtype != RIJNDAEL_256_256)){
-		return -1;
-	}
-	if((ctx3 == NULL) || (ctx3->rtype != RIJNDAEL_256_256)){
-		return -1;
-	}
-	if((ctx4 == NULL) || (ctx4->rtype != RIJNDAEL_256_256)){
-		return -1;
-	}
+	rijndael_ct64_ctx_rijndael256 *dummy_ctx = NULL;
 
-	ret = core_ct64_bitslice_encrypt(ctx1, ctx2, NULL, NULL,
-        plainText1, plainText2, NULL, NULL,
-        cipherText1, cipherText2, NULL, NULL);
-	if(ret){
-		ret = -1;
+	if((ctx == NULL) || (ctx->rtype != RIJNDAEL_256_256)){
 		goto err;
 	}
-	ret = core_ct64_bitslice_encrypt(ctx3, ctx4, NULL, NULL,
-        plainText3, plainText4, NULL, NULL,
-        cipherText3, cipherText4, NULL, NULL);
-	if(ret){
-		ret = -1;
-		goto err;
-	}
+	CORE_CT64_BITSLICE_ENCRYPT(ctx, dummy_ctx, dummy_ctx, dummy_ctx,
+        data_in, NULL, NULL, NULL,
+        data_out, NULL, NULL, NULL);
 
 	ret = 0;
 err:
 	return ret;
 }
 
-WEAK int rijndael256_ct64_enc_x8(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const rijndael_ct64_ctx *ctx3, const rijndael_ct64_ctx *ctx4,
-                  const rijndael_ct64_ctx *ctx5, const rijndael_ct64_ctx *ctx6, const rijndael_ct64_ctx *ctx7, const rijndael_ct64_ctx *ctx8,
+WEAK int rijndael256_ct64_enc_x2(const rijndael_ct64_ctx_rijndael256 *ctx1, const rijndael_ct64_ctx_rijndael256 *ctx2, const uint8_t plainText1[32], const uint8_t plainText2[32], uint8_t cipherText1[32], uint8_t cipherText2[32])
+{
+	int ret = -1;
+
+	rijndael_ct64_ctx_rijndael256 *dummy_ctx = NULL;
+
+	if((ctx1 == NULL) || (ctx1->rtype != RIJNDAEL_256_256)){
+		goto err;
+	}
+	if((ctx2 == NULL) || (ctx2->rtype != RIJNDAEL_256_256)){
+		goto err;
+	}
+	CORE_CT64_BITSLICE_ENCRYPT(ctx1, ctx2, dummy_ctx, dummy_ctx,
+        plainText1, plainText2, NULL, NULL,
+        cipherText1, cipherText2, NULL, NULL);
+
+	ret = 0;
+err:
+	return ret;
+}
+
+WEAK int rijndael256_ct64_enc_x4(const rijndael_ct64_ctx_rijndael256 *ctx1, const rijndael_ct64_ctx_rijndael256 *ctx2, const rijndael_ct64_ctx_rijndael256 *ctx3, const rijndael_ct64_ctx_rijndael256 *ctx4,
+                const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
+                uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32])
+{
+	int ret = -1;
+
+	rijndael_ct64_ctx_rijndael256 *dummy_ctx = NULL;
+
+	if((ctx1 == NULL) || (ctx1->rtype != RIJNDAEL_256_256)){
+		goto err;
+	}
+	if((ctx2 == NULL) || (ctx2->rtype != RIJNDAEL_256_256)){
+		goto err;
+	}
+	if((ctx3 == NULL) || (ctx3->rtype != RIJNDAEL_256_256)){
+		goto err;;
+	}
+	if((ctx4 == NULL) || (ctx4->rtype != RIJNDAEL_256_256)){
+		goto err;
+	}
+
+	CORE_CT64_BITSLICE_ENCRYPT(ctx1, ctx2, dummy_ctx, dummy_ctx,
+        plainText1, plainText2, NULL, NULL,
+        cipherText1, cipherText2, NULL, NULL);
+
+	CORE_CT64_BITSLICE_ENCRYPT(ctx3, ctx4, dummy_ctx, dummy_ctx,
+        plainText3, plainText4, NULL, NULL,
+        cipherText3, cipherText4, NULL, NULL);
+
+	ret = 0;
+err:
+	return ret;
+}
+
+WEAK int rijndael256_ct64_enc_x8(const rijndael_ct64_ctx_rijndael256 *ctx1, const rijndael_ct64_ctx_rijndael256 *ctx2, const rijndael_ct64_ctx_rijndael256 *ctx3, const rijndael_ct64_ctx_rijndael256 *ctx4,
+                  const rijndael_ct64_ctx_rijndael256 *ctx5, const rijndael_ct64_ctx_rijndael256 *ctx6, const rijndael_ct64_ctx_rijndael256 *ctx7, const rijndael_ct64_ctx_rijndael256 *ctx8,
                 const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
                 const uint8_t plainText5[32], const uint8_t plainText6[32], const uint8_t plainText7[32], const uint8_t plainText8[32],
                 uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32],

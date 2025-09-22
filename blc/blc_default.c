@@ -206,14 +206,14 @@ int BLC_Commit_default(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t
 #if defined(USE_XOF_X4)
     if((e % 4) == 3){
         /* Use the X4 XOF on the previously computed 4 */
-        xof_context_x4 xof_ctx;
+        xof_context_x4 xof_ctx_x4;
         const uint8_t *constant_6[4] = { (const uint8_t*) "\x06", (const uint8_t*) "\x06", (const uint8_t*) "\x06", (const uint8_t*) "\x06" };
         const uint8_t *to_hash_ptr[4] = { (const uint8_t*) ls_com[e-3], (const uint8_t*) ls_com[e-2], (const uint8_t*) ls_com[e-1], (const uint8_t*) ls_com[e] };
         uint8_t *hash_ptr[4] = { hash_ls_com[e-3], hash_ls_com[e-2], hash_ls_com[e-1], hash_ls_com[e] };
-        ret = xof_init_x4(&xof_ctx); ERR(ret, err);
-        ret = xof_update_x4(&xof_ctx, constant_6, 1); ERR(ret, err);
-        ret = xof_update_x4(&xof_ctx, to_hash_ptr, MQOM2_PARAM_NB_EVALS * MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
-        ret = xof_squeeze_x4(&xof_ctx, hash_ptr, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+        ret = xof_init_x4(&xof_ctx_x4); ERR(ret, err);
+        ret = xof_update_x4(&xof_ctx_x4, constant_6, 1); ERR(ret, err);
+        ret = xof_update_x4(&xof_ctx_x4, to_hash_ptr, MQOM2_PARAM_NB_EVALS * MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+        ret = xof_squeeze_x4(&xof_ctx_x4, hash_ptr, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
     }
     else if(e >= (4 * (MQOM2_PARAM_TAU / 4)))
         /* No room for X4 XOF, perform regular */
@@ -410,14 +410,14 @@ int BLC_Eval_default(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t co
 #if defined(USE_XOF_X4)
     if((e % 4) == 3){
         /* Use the X4 XOF on the previously computed 4 */
-        xof_context_x4 xof_ctx;
+        xof_context_x4 xof_ctx_x4;
         const uint8_t *constant_6[4] = { (const uint8_t*) "\x06", (const uint8_t*) "\x06", (const uint8_t*) "\x06", (const uint8_t*) "\x06" };
         const uint8_t *to_hash_ptr[4] = { (const uint8_t*) ls_com_e[LS_COMM_E_COEFF(e-3)], (const uint8_t*) ls_com_e[LS_COMM_E_COEFF(e-2)], (const uint8_t*) ls_com_e[LS_COMM_E_COEFF(e-1)], (const uint8_t*) ls_com_e[LS_COMM_E_COEFF(e)] };
         uint8_t *hash_ptr[4] = { hash_ls_com[e-3], hash_ls_com[e-2], hash_ls_com[e-1], hash_ls_com[e] };
-        ret = xof_init_x4(&xof_ctx); ERR(ret, err);
-        ret = xof_update_x4(&xof_ctx, constant_6, 1); ERR(ret, err);
-        ret = xof_update_x4(&xof_ctx, to_hash_ptr, MQOM2_PARAM_NB_EVALS * MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
-        ret = xof_squeeze_x4(&xof_ctx, hash_ptr, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+        ret = xof_init_x4(&xof_ctx_x4); ERR(ret, err);
+        ret = xof_update_x4(&xof_ctx_x4, constant_6, 1); ERR(ret, err);
+        ret = xof_update_x4(&xof_ctx_x4, to_hash_ptr, MQOM2_PARAM_NB_EVALS * MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+        ret = xof_squeeze_x4(&xof_ctx_x4, hash_ptr, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
     }
     else if(e >= (4 * (MQOM2_PARAM_TAU / 4)))
         /* No room for X4 XOF, perform regular */

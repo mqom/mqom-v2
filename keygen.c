@@ -148,7 +148,11 @@ err:
 }
 #endif
 
+#if !defined(MQOM2_FOR_MUPQ)
 extern int randombytes(unsigned char* x, unsigned long long xlen);
+#else
+#include "randombytes.h"
+#endif
 int crypto_sign_keypair(unsigned char *pk, unsigned char *sk) {
 	/* Sample the seed key */
 	uint8_t seed_key[2 * MQOM2_PARAM_SEED_SIZE];

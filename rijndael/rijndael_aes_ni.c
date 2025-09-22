@@ -775,7 +775,7 @@ static inline void KEY_256_ASSIST_2(__m128i* temp1, __m128i * temp3)
 
 /* ==== Public APIs ===== */
 
-WEAK int aes128_aes_ni_setkey_enc(rijndael_aes_ni_ctx *ctx, const uint8_t enc_key[16])
+WEAK int aes128_aes_ni_setkey_enc(rijndael_aes_ni_ctx_aes128 *ctx, const uint8_t enc_key[16])
 {
 	__m128i *Key_Schedule = (__m128i*)ctx->rk;
 	/**/
@@ -797,7 +797,7 @@ WEAK int aes128_aes_ni_setkey_enc(rijndael_aes_ni_ctx *ctx, const uint8_t enc_ke
 }
 
 
-WEAK int aes256_aes_ni_setkey_enc(rijndael_aes_ni_ctx *ctx, const uint8_t enc_key[32])
+WEAK int aes256_aes_ni_setkey_enc(rijndael_aes_ni_ctx_aes256 *ctx, const uint8_t enc_key[32])
 {
 	__m128i temp1, temp2, temp3;
 	__m128i *Key_Schedule = (__m128i*)ctx->rk;
@@ -845,7 +845,7 @@ WEAK int aes256_aes_ni_setkey_enc(rijndael_aes_ni_ctx *ctx, const uint8_t enc_ke
 	return 0;
 }
  
-WEAK int rijndael256_aes_ni_setkey_enc(rijndael_aes_ni_ctx *ctx, const uint8_t enc_key[32])
+WEAK int rijndael256_aes_ni_setkey_enc(rijndael_aes_ni_ctx_rijndael256 *ctx, const uint8_t enc_key[32])
 {
 	__m128i temp1, temp2, temp3;
 	__m128i *Key_Schedule = (__m128i*)ctx->rk;
@@ -931,7 +931,7 @@ WEAK int rijndael256_aes_ni_setkey_enc(rijndael_aes_ni_ctx *ctx, const uint8_t e
 
 }
 
-WEAK int aes128_aes_ni_enc(const rijndael_aes_ni_ctx *ctx, const uint8_t plainText[16], uint8_t cipherText[16]){
+WEAK int aes128_aes_ni_enc(const rijndael_aes_ni_ctx_aes128 *ctx, const uint8_t plainText[16], uint8_t cipherText[16]){
 	__m128i m;
 	int ret = -1;
 
@@ -950,7 +950,7 @@ err:
 	return ret;
 }
 
-WEAK int aes128_aes_ni_enc_x2(const rijndael_aes_ni_ctx *ctx1, const rijndael_aes_ni_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16]){
+WEAK int aes128_aes_ni_enc_x2(const rijndael_aes_ni_ctx_aes128 *ctx1, const rijndael_aes_ni_ctx_aes128 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16]){
 	__m128i m1, m2;
 	int ret = -1;
 
@@ -974,7 +974,7 @@ err:
 	return ret;
 }
 
-WEAK int aes128_aes_ni_enc_x4(const rijndael_aes_ni_ctx *ctx1, const rijndael_aes_ni_ctx *ctx2, const rijndael_aes_ni_ctx *ctx3, const rijndael_aes_ni_ctx *ctx4,
+WEAK int aes128_aes_ni_enc_x4(const rijndael_aes_ni_ctx_aes128 *ctx1, const rijndael_aes_ni_ctx_aes128 *ctx2, const rijndael_aes_ni_ctx_aes128 *ctx3, const rijndael_aes_ni_ctx_aes128 *ctx4,
 		const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
 		uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16]){
 	__m128i m1, m2, m3, m4;
@@ -1010,8 +1010,8 @@ err:
 	return ret;
 }
 
-WEAK int aes128_aes_ni_enc_x8(const rijndael_aes_ni_ctx *ctx1, const rijndael_aes_ni_ctx *ctx2, const rijndael_aes_ni_ctx *ctx3, const rijndael_aes_ni_ctx *ctx4,
-                  const rijndael_aes_ni_ctx *ctx5, const rijndael_aes_ni_ctx *ctx6, const rijndael_aes_ni_ctx *ctx7, const rijndael_aes_ni_ctx *ctx8,
+WEAK int aes128_aes_ni_enc_x8(const rijndael_aes_ni_ctx_aes128 *ctx1, const rijndael_aes_ni_ctx_aes128 *ctx2, const rijndael_aes_ni_ctx_aes128 *ctx3, const rijndael_aes_ni_ctx_aes128 *ctx4,
+                  const rijndael_aes_ni_ctx_aes128 *ctx5, const rijndael_aes_ni_ctx_aes128 *ctx6, const rijndael_aes_ni_ctx_aes128 *ctx7, const rijndael_aes_ni_ctx_aes128 *ctx8,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
@@ -1071,7 +1071,7 @@ err:
 	return ret;
 }
 
-WEAK int aes256_aes_ni_enc(const rijndael_aes_ni_ctx *ctx, const uint8_t plainText[16], uint8_t cipherText[16]){
+WEAK int aes256_aes_ni_enc(const rijndael_aes_ni_ctx_aes256 *ctx, const uint8_t plainText[16], uint8_t cipherText[16]){
 	__m128i m;
 	int ret = -1;
 
@@ -1090,7 +1090,7 @@ err:
 	return ret;
 }
 
-WEAK int aes256_aes_ni_enc_x2(const rijndael_aes_ni_ctx *ctx1, const rijndael_aes_ni_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16]){
+WEAK int aes256_aes_ni_enc_x2(const rijndael_aes_ni_ctx_aes256 *ctx1, const rijndael_aes_ni_ctx_aes256 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16]){
 	__m128i m1, m2;
 	int ret = -1;
 
@@ -1114,7 +1114,7 @@ err:
 	return ret;
 }
 
-WEAK int aes256_aes_ni_enc_x4(const rijndael_aes_ni_ctx *ctx1, const rijndael_aes_ni_ctx *ctx2, const rijndael_aes_ni_ctx *ctx3, const rijndael_aes_ni_ctx *ctx4,
+WEAK int aes256_aes_ni_enc_x4(const rijndael_aes_ni_ctx_aes256 *ctx1, const rijndael_aes_ni_ctx_aes256 *ctx2, const rijndael_aes_ni_ctx_aes256 *ctx3, const rijndael_aes_ni_ctx_aes256 *ctx4,
 		const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
 		uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16]){
 	__m128i m1, m2, m3, m4;
@@ -1150,8 +1150,8 @@ err:
 	return ret;
 }
 
-WEAK int aes256_aes_ni_enc_x8(const rijndael_aes_ni_ctx *ctx1, const rijndael_aes_ni_ctx *ctx2, const rijndael_aes_ni_ctx *ctx3, const rijndael_aes_ni_ctx *ctx4,
-                  const rijndael_aes_ni_ctx *ctx5, const rijndael_aes_ni_ctx *ctx6, const rijndael_aes_ni_ctx *ctx7, const rijndael_aes_ni_ctx *ctx8,
+WEAK int aes256_aes_ni_enc_x8(const rijndael_aes_ni_ctx_aes256 *ctx1, const rijndael_aes_ni_ctx_aes256 *ctx2, const rijndael_aes_ni_ctx_aes256 *ctx3, const rijndael_aes_ni_ctx_aes256 *ctx4,
+                  const rijndael_aes_ni_ctx_aes256 *ctx5, const rijndael_aes_ni_ctx_aes256 *ctx6, const rijndael_aes_ni_ctx_aes256 *ctx7, const rijndael_aes_ni_ctx_aes256 *ctx8,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
@@ -1211,7 +1211,7 @@ err:
 	return ret;
 }
 
-WEAK int rijndael256_aes_ni_enc(const rijndael_aes_ni_ctx *ctx, const uint8_t plainText[32], uint8_t cipherText[32]){
+WEAK int rijndael256_aes_ni_enc(const rijndael_aes_ni_ctx_rijndael256 *ctx, const uint8_t plainText[32], uint8_t cipherText[32]){
 	__m128i ml, mr;
 	int ret = -1;
 
@@ -1232,7 +1232,7 @@ err:
 	return ret;
 }
 
-WEAK int rijndael256_aes_ni_enc_x2(const rijndael_aes_ni_ctx *ctx1, const rijndael_aes_ni_ctx *ctx2,
+WEAK int rijndael256_aes_ni_enc_x2(const rijndael_aes_ni_ctx_rijndael256 *ctx1, const rijndael_aes_ni_ctx_rijndael256 *ctx2,
 			const uint8_t plainText1[32], const uint8_t plainText2[32],
 			uint8_t cipherText1[32], uint8_t cipherText2[32]){
 	__m128i ml1, mr1, ml2, mr2;
@@ -1262,7 +1262,7 @@ err:
 	return ret;
 }
 
-WEAK int rijndael256_aes_ni_enc_x4(const rijndael_aes_ni_ctx *ctx1, const rijndael_aes_ni_ctx *ctx2, const rijndael_aes_ni_ctx *ctx3, const rijndael_aes_ni_ctx *ctx4,
+WEAK int rijndael256_aes_ni_enc_x4(const rijndael_aes_ni_ctx_rijndael256 *ctx1, const rijndael_aes_ni_ctx_rijndael256 *ctx2, const rijndael_aes_ni_ctx_rijndael256 *ctx3, const rijndael_aes_ni_ctx_rijndael256 *ctx4,
 		const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
 		uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32]){
 	__m128i ml1, mr1, ml2, mr2, ml3, mr3, ml4, mr4;
@@ -1306,8 +1306,8 @@ err:
 	return ret;
 }
 
-WEAK int rijndael256_aes_ni_enc_x8(const rijndael_aes_ni_ctx *ctx1, const rijndael_aes_ni_ctx *ctx2, const rijndael_aes_ni_ctx *ctx3, const rijndael_aes_ni_ctx *ctx4,
-                  const rijndael_aes_ni_ctx *ctx5, const rijndael_aes_ni_ctx *ctx6, const rijndael_aes_ni_ctx *ctx7, const rijndael_aes_ni_ctx *ctx8,
+WEAK int rijndael256_aes_ni_enc_x8(const rijndael_aes_ni_ctx_rijndael256 *ctx1, const rijndael_aes_ni_ctx_rijndael256 *ctx2, const rijndael_aes_ni_ctx_rijndael256 *ctx3, const rijndael_aes_ni_ctx_rijndael256 *ctx4,
+                  const rijndael_aes_ni_ctx_rijndael256 *ctx5, const rijndael_aes_ni_ctx_rijndael256 *ctx6, const rijndael_aes_ni_ctx_rijndael256 *ctx7, const rijndael_aes_ni_ctx_rijndael256 *ctx8,
                 const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
                 const uint8_t plainText5[32], const uint8_t plainText6[32], const uint8_t plainText7[32], const uint8_t plainText8[32],
                 uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32],

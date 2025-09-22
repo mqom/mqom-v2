@@ -430,155 +430,141 @@ sub_word(uint32_t x)
 }
 
 /* Key schedule for one key */
-static inline int
-br_aes_ct64_keysched(rijndael_ct64_ctx *ctx, const void *key, rijndael_type rtype)
-{
-	unsigned num_rounds;
-	int ret = -1;
-	int i, j, k, nb, nk, nkf;
-	uint32_t tmp;
-	size_t key_len;
-	uint32_t *skey = ctx->rk;
-
-        if((ctx == NULL) || (key == NULL)){
-                goto err;
-        }
-	/* NOTE: for AES we have 4 keys, for Rijndael-256 we have 2 keys */
-        switch(rtype){
-                case AES128:{
-                        ctx->Nr = num_rounds = 10;
-                        ctx->Nk = nk = 4;
-                        ctx->Nb = nb = 4;
-			key_len = 16;
-                        break;
-                }
-                case AES256:{
-                        ctx->Nr = num_rounds = 14;
-                        ctx->Nk = nk = 8;
-                        ctx->Nb = nb = 4;
-			key_len = 32;
-                        break;
-                }
-                case RIJNDAEL_256_256:{
-                        ctx->Nr = num_rounds = 14;
-                        ctx->Nk = nk = 8;
-                        ctx->Nb = nb = 8;
-			key_len = 32;
-                        break;
-                }
-                default:{
-                        ret = -1;
-                        goto err;
-                }
-        }
-	ctx->rtype = rtype;
-
-	/* Perform the non-bitsliced key schedule */
-	nk = (int)(key_len >> 2);
-	nkf = (int)((num_rounds + 1) * nb);
-	br_range_dec32le(skey, (key_len >> 2), key);
-	tmp = skey[(key_len >> 2) - 1];
-	for (i = nk, j = 0, k = 0; i < nkf; i ++) {
-		if (j == 0) {
-			tmp = (tmp << 24) | (tmp >> 8);
-			tmp = sub_word(tmp) ^ Rcon[k];
-		} else if (nk > 6 && j == 4) {
-			tmp = sub_word(tmp);
-		}
-		tmp ^= skey[i - nk];
-		skey[i] = tmp;
-		if (++ j == nk) {
-			j = 0;
-			k ++;
-		}
-	}
-
-	ret = 0;
-err:
-	return ret;
-}
+#define BR_AES_CT64_KEYSCHED(ctx, key, rtype_) do { \
+	unsigned num_rounds;\
+	int i, j, k, nb, nk, nkf;\
+	uint32_t tmp;\
+	size_t key_len;\
+	uint32_t *skey = ctx->rk;\
+\
+        if((ctx == NULL) || (key == NULL)){\
+                goto err;\
+        }\
+	/* NOTE: for AES we have 4 keys, for Rijndael-256 we have 2 keys */\
+        switch(rtype_){\
+                case AES128:{\
+                        ctx->Nr = num_rounds = 10;\
+                        ctx->Nk = nk = 4;\
+                        ctx->Nb = nb = 4;\
+			key_len = 16;\
+                        break;\
+                }\
+                case AES256:{\
+                        ctx->Nr = num_rounds = 14;\
+                        ctx->Nk = nk = 8;\
+                        ctx->Nb = nb = 4;\
+			key_len = 32;\
+                        break;\
+                }\
+                case RIJNDAEL_256_256:{\
+                        ctx->Nr = num_rounds = 14;\
+                        ctx->Nk = nk = 8;\
+                        ctx->Nb = nb = 8;\
+			key_len = 32;\
+                        break;\
+                }\
+                default:{\
+                        ret = -1;\
+                        goto err;\
+                }\
+        }\
+	ctx->rtype = rtype_;\
+\
+	/* Perform the non-bitsliced key schedule */\
+	nk = (int)(key_len >> 2);\
+	nkf = (int)((num_rounds + 1) * nb);\
+	br_range_dec32le(skey, (key_len >> 2), key);\
+	tmp = skey[(key_len >> 2) - 1];\
+	for (i = nk, j = 0, k = 0; i < nkf; i ++) {\
+		if (j == 0) {\
+			tmp = (tmp << 24) | (tmp >> 8);\
+			tmp = sub_word(tmp) ^ Rcon[k];\
+		} else if (nk > 6 && j == 4) {\
+			tmp = sub_word(tmp);\
+		}\
+		tmp ^= skey[i - nk];\
+		skey[i] = tmp;\
+		if (++ j == nk) {\
+			j = 0;\
+			k ++;\
+		}\
+	}\
+} while(0);
 
 /* Bitslice key scheduled keys */
-static inline int
-bitslice_keys(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const rijndael_ct64_ctx *ctx3, const rijndael_ct64_ctx *ctx4, uint64_t *comp_skey)
-{
-	unsigned int i, j;
-	int ret = -1;
-
-	/* Sanity checks: at least one context  */
-	if(ctx1 == NULL){
-		ret = -1;
-		goto err;
-	}
-	/* We must have at most 4 contexts for AES, at most 2 contexts for Rijndael */
-	if((ctx1->rtype == RIJNDAEL_256_256) && ((ctx3 != NULL) || (ctx4 != NULL))){
-		ret = -1;
-		goto err;
-	}
-	if(ctx2 && (ctx2->rtype != ctx1->rtype)){
-		ret = -1;
-		goto err;
-	}
-	if(ctx3 && (ctx3->rtype != ctx1->rtype)){
-		ret = -1;
-		goto err;
-	}
-	if(ctx4 && (ctx4->rtype != ctx1->rtype)){
-		ret = -1;
-		goto err;
-	}
-
-	/* Bitslice the keys */
-	j = 0;
-	for(i = 0; i < ((ctx1->Nr + 1) * ctx1->Nb); i += ctx1->Nb){
-		uint64_t *q = &comp_skey[j];
-		uint64_t *q0 = &q[0];
-		uint64_t *q1 = &q[1];
-		uint64_t *q2 = &q[2];
-		uint64_t *q3 = &q[3];
-		uint64_t *q4 = &q[4];
-		uint64_t *q5 = &q[5];
-		uint64_t *q6 = &q[6];
-		uint64_t *q7 = &q[7];
-		j += 8;
-
-		/* Interleave the keys */
-		if(ctx1->rtype == RIJNDAEL_256_256){
-			uint32_t w[16] = { 0 };
-			uint32_t *w0 = &w[0];
-			uint32_t *w1 = &w[4];
-			uint32_t *w2 = &w[8];
-			uint32_t *w3 = &w[12];
-
-			br_rijndael_ct64_interleave_in(w0, &ctx1->rk[i]);
-			br_aes_ct64_interleave_in(q0, q4, w0);
-                	br_aes_ct64_interleave_in(q2, q6, w1);
-			if(ctx2 != NULL){
-				br_rijndael_ct64_interleave_in(w2, &ctx2->rk[i]);
-                		br_aes_ct64_interleave_in(q1, q5, w2);
-                		br_aes_ct64_interleave_in(q3, q7, w3);
-			}
-		}
-		else{
-			br_aes_ct64_interleave_in(q0, q4, &ctx1->rk[i]);
-			if(ctx2 != NULL){
-                		br_aes_ct64_interleave_in(q1, q5, &ctx2->rk[i]);
-			}
-			if(ctx3 != NULL){
-                		br_aes_ct64_interleave_in(q2, q6, &ctx3->rk[i]);
-			}
-			if(ctx4 != NULL){
-                		br_aes_ct64_interleave_in(q3, q7, &ctx4->rk[i]);
-			}
-		}
-		/* Transpose */
-		br_aes_ct64_ortho(q);
-	}
-
-	ret = 0;
-err:
-	return ret;
-}
+#define BITSLICE_KEYS(ctx1, ctx2, ctx3, ctx4, comp_skey) do { \
+	unsigned int i, j;\
+\
+	/* Sanity checks: at least one context  */\
+	if(ctx1 == NULL){\
+		ret = -1;\
+		goto err;\
+	}\
+	/* We must have at most 4 contexts for AES, at most 2 contexts for Rijndael */\
+	if((ctx1->rtype == RIJNDAEL_256_256) && ((ctx3 != NULL) || (ctx4 != NULL))){\
+		ret = -1;\
+		goto err;\
+	}\
+	if(ctx2 && (ctx2->rtype != ctx1->rtype)){\
+		ret = -1;\
+		goto err;\
+	}\
+	if(ctx3 && (ctx3->rtype != ctx1->rtype)){\
+		ret = -1;\
+		goto err;\
+	}\
+	if(ctx4 && (ctx4->rtype != ctx1->rtype)){\
+		ret = -1;\
+		goto err;\
+	}\
+\
+	/* Bitslice the keys */\
+	j = 0;\
+	for(i = 0; i < ((ctx1->Nr + 1) * ctx1->Nb); i += ctx1->Nb){\
+		uint64_t *q_ = &comp_skey[j];\
+		uint64_t *q0_ = &q_[0];\
+		uint64_t *q1_ = &q_[1];\
+		uint64_t *q2_ = &q_[2];\
+		uint64_t *q3_ = &q_[3];\
+		uint64_t *q4_ = &q_[4];\
+		uint64_t *q5_ = &q_[5];\
+		uint64_t *q6_ = &q_[6];\
+		uint64_t *q7_ = &q_[7];\
+		j += 8;\
+\
+		/* Interleave the keys */\
+		if(ctx1->rtype == RIJNDAEL_256_256){\
+			uint32_t w_[16] = { 0 };\
+			uint32_t *w0_ = &w_[0];\
+			uint32_t *w1_ = &w_[4];\
+			uint32_t *w2_ = &w_[8];\
+			uint32_t *w3_ = &w_[12];\
+\
+			br_rijndael_ct64_interleave_in(w0_, &ctx1->rk[i]);\
+			br_aes_ct64_interleave_in(q0_, q4_, w0_);\
+                	br_aes_ct64_interleave_in(q2_, q6_, w1_);\
+			if(ctx2 != NULL){\
+				br_rijndael_ct64_interleave_in(w2_, &ctx2->rk[i]);\
+                		br_aes_ct64_interleave_in(q1_, q5_, w2_);\
+                		br_aes_ct64_interleave_in(q3_, q7_, w3_);\
+			}\
+		}\
+		else{\
+			br_aes_ct64_interleave_in(q0_, q4_, &ctx1->rk[i]);\
+			if(ctx2 != NULL){\
+                		br_aes_ct64_interleave_in(q1_, q5_, &ctx2->rk[i]);\
+			}\
+			if(ctx3 != NULL){\
+                		br_aes_ct64_interleave_in(q2_, q6_, &ctx3->rk[i]);\
+			}\
+			if(ctx4 != NULL){\
+                		br_aes_ct64_interleave_in(q3_, q7_, &ctx4->rk[i]);\
+			}\
+		}\
+		/* Transpose */\
+		br_aes_ct64_ortho(q_);\
+	}\
+} while(0);
 
 static inline void
 add_round_key(uint64_t *q, const uint64_t *sk)
@@ -601,7 +587,6 @@ shift_rows(uint64_t *q, bool is_rijndael_256)
 
 	for (i = 0; i < 8; i ++) {
 		uint64_t x;
-
 		x = q[i];
 		if(!is_rijndael_256){
 			/* For AES, shifts are 0, 1, 2, 3 per row respectively */
@@ -683,144 +668,132 @@ br_ct64_bitslice_encrypt(const uint64_t *skey, rijndael_type rtype, unsigned int
 }
 
 /* Generic vitslice encryption */
-static inline int
-core_ct64_bitslice_encrypt(const rijndael_ct64_ctx *ctx1, const rijndael_ct64_ctx *ctx2, const rijndael_ct64_ctx *ctx3, const rijndael_ct64_ctx *ctx4,
-	const uint8_t *plainText1, const uint8_t *plainText2, const uint8_t *plainText3, const uint8_t *plainText4,
-	uint8_t *cipherText1, uint8_t *cipherText2, uint8_t *cipherText3, uint8_t *cipherText4)
-{
-	int ret = -1;
-	/* Maximum size for all the instances */
-	uint64_t comp_skey[120];
-	/* The bitsliced states */
-	uint64_t q[8] = { 0 };
-	rijndael_type rtype;
-	uint32_t w[16] = { 0 };
-	uint32_t *w0 = &w[0];
-	uint32_t *w1 = &w[4];
-	uint32_t *w2 = &w[8];
-	uint32_t *w3 = &w[12];
-	uint64_t *q0 = &q[0];
-	uint64_t *q1 = &q[1];
-	uint64_t *q2 = &q[2];
-	uint64_t *q3 = &q[3];
-	uint64_t *q4 = &q[4];
-	uint64_t *q5 = &q[5];
-	uint64_t *q6 = &q[6];
-	uint64_t *q7 = &q[7];
-
-	/* Sanity checks */
-	if(ctx1 == NULL){
-		ret = -1;
-		goto err;
-	}
-	rtype = ctx1->rtype;
-	if(ctx2 && (ctx2->rtype != rtype)){
-		ret = -1;
-		goto err;
-	}
-	if(ctx3 && (ctx3->rtype != rtype)){
-		ret = -1;
-		goto err;
-	}
-	if(ctx4 && (ctx4->rtype != rtype)){
-		ret = -1;
-		goto err;
-	}
-	if((rtype == RIJNDAEL_256_256) && ((ctx3 != NULL) || (ctx4 != NULL))){
-		ret = -1;
-		goto err;
-	}
-	if((rtype == RIJNDAEL_256_256) && ((plainText3 != NULL) || (plainText4 != NULL))){
-		ret = -1;
-		goto err;
-	}
-
-	/* The internal bitsliced round keys */
-	ret = bitslice_keys(ctx1, ctx2, ctx3, ctx4, comp_skey);
-	if(ret){
-		goto err;
-	}
-
-	/* Interleave the plaintexts */
-	if(rtype == RIJNDAEL_256_256){
-		uint32_t w_tmp[8];
-		if(plainText1 != NULL){
-			br_range_dec32le(w_tmp, 8, plainText1);
-			br_rijndael_ct64_interleave_in(w0, w_tmp);
-			br_aes_ct64_interleave_in(q0, q4, w0);
-			br_aes_ct64_interleave_in(q2, q6, w1);
-		}
-		if(plainText2 != NULL){
-			br_range_dec32le(w_tmp, 8, plainText2);
-			br_rijndael_ct64_interleave_in(w2, w_tmp);
-			br_aes_ct64_interleave_in(q1, q5, w2);
-			br_aes_ct64_interleave_in(q3, q7, w3);
-		}
-	}
-	else{
-		if(plainText1 != NULL){
-			br_range_dec32le(w0, 4, plainText1);
-			br_aes_ct64_interleave_in(q0, q4, w0);
-		}
-		if(plainText2 != NULL){
-			br_range_dec32le(w1, 4, plainText2);
-			br_aes_ct64_interleave_in(q1, q5, w1);
-		}
-		if(plainText3 != NULL){
-			br_range_dec32le(w2, 4, plainText3);
-			br_aes_ct64_interleave_in(q2, q6, w2);
-		}
-		if(plainText4 != NULL){
-			br_range_dec32le(w3, 4, plainText4);
-			br_aes_ct64_interleave_in(q3, q7, w3);
-		}
-	}
-
-	/* Transpose in */
-	br_aes_ct64_ortho(q);
-	/* Call the core encryption */
-	br_ct64_bitslice_encrypt(comp_skey, rtype, ctx1->Nr, q);
-	/* Transpose out */
-	br_aes_ct64_ortho(q);
-
-	/* Now extract the output */
-	if(rtype == RIJNDAEL_256_256){
-		uint32_t w_tmp[8];
-		if(cipherText1 != NULL){
-			br_aes_ct64_interleave_out(w0, *q0, *q4);
-			br_aes_ct64_interleave_out(w1, *q2, *q6);
-			br_rijndael_ct64_interleave_out(w_tmp, w0);
-			br_range_enc32le(cipherText1, w_tmp, 8);
-		}
-		if(cipherText2 != NULL){
-			br_aes_ct64_interleave_out(w2, *q1, *q5);
-			br_aes_ct64_interleave_out(w3, *q3, *q7);
-			br_rijndael_ct64_interleave_out(w_tmp, w2);
-			br_range_enc32le(cipherText2, w_tmp, 8);
-		}
-	}
-	else{
-		if(cipherText1 != NULL){
-			br_aes_ct64_interleave_out(w0, *q0, *q4);
-			br_range_enc32le(cipherText1, w0, 4);
-		}
-		if(cipherText2 != NULL){
-			br_aes_ct64_interleave_out(w1, *q1, *q5);
-			br_range_enc32le(cipherText2, w1, 4);
-		}
-		if(cipherText3 != NULL){
-			br_aes_ct64_interleave_out(w2, *q2, *q6);
-			br_range_enc32le(cipherText3, w2, 4);
-		}
-		if(cipherText4 != NULL){
-			br_aes_ct64_interleave_out(w3, *q3, *q7);
-			br_range_enc32le(cipherText4, w3, 4);
-		}
-	}
-
-	ret = 0;
-err:
-	return ret;
-}
+#define CORE_CT64_BITSLICE_ENCRYPT(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4) do { \
+	/* Maximum size for all the instances */\
+	uint64_t comp_skey[120];\
+	/* The bitsliced states */\
+	uint64_t q[8] = { 0 };\
+	rijndael_type rtype_;\
+	uint32_t w[16] = { 0 };\
+	uint32_t *w0 = &w[0];\
+	uint32_t *w1 = &w[4];\
+	uint32_t *w2 = &w[8];\
+	uint32_t *w3 = &w[12];\
+	uint64_t *q0 = &q[0];\
+	uint64_t *q1 = &q[1];\
+	uint64_t *q2 = &q[2];\
+	uint64_t *q3 = &q[3];\
+	uint64_t *q4 = &q[4];\
+	uint64_t *q5 = &q[5];\
+	uint64_t *q6 = &q[6];\
+	uint64_t *q7 = &q[7];\
+\
+	/* Sanity checks */\
+	if(ctx1 == NULL){\
+		ret = -1;\
+		goto err;\
+	}\
+	rtype_ = ctx1->rtype;\
+	if(ctx2 && (ctx2->rtype != rtype_)){\
+		ret = -1;\
+		goto err;\
+	}\
+	if(ctx3 && (ctx3->rtype != rtype_)){\
+		ret = -1;\
+		goto err;\
+	}\
+	if(ctx4 && (ctx4->rtype != rtype_)){\
+		ret = -1;\
+		goto err;\
+	}\
+	if((rtype_ == RIJNDAEL_256_256) && ((ctx3 != NULL) || (ctx4 != NULL))){\
+		ret = -1;\
+		goto err;\
+	}\
+	if((rtype_ == RIJNDAEL_256_256) && ((plainText3 != NULL) || (plainText4 != NULL))){\
+		ret = -1;\
+		goto err;\
+	}\
+\
+	/* The internal bitsliced round keys */\
+	BITSLICE_KEYS(ctx1, ctx2, ctx3, ctx4, comp_skey);\
+\
+	/* Interleave the plaintexts */\
+	if(rtype_ == RIJNDAEL_256_256){\
+		uint32_t w_tmp[8];\
+		if(plainText1 != NULL){\
+			br_range_dec32le(w_tmp, 8, plainText1);\
+			br_rijndael_ct64_interleave_in(w0, w_tmp);\
+			br_aes_ct64_interleave_in(q0, q4, w0);\
+			br_aes_ct64_interleave_in(q2, q6, w1);\
+		}\
+		if(plainText2 != NULL){\
+			br_range_dec32le(w_tmp, 8, plainText2);\
+			br_rijndael_ct64_interleave_in(w2, w_tmp);\
+			br_aes_ct64_interleave_in(q1, q5, w2);\
+			br_aes_ct64_interleave_in(q3, q7, w3);\
+		}\
+	}\
+	else{\
+		if(plainText1 != NULL){\
+			br_range_dec32le(w0, 4, plainText1);\
+			br_aes_ct64_interleave_in(q0, q4, w0);\
+		}\
+		if(plainText2 != NULL){\
+			br_range_dec32le(w1, 4, plainText2);\
+			br_aes_ct64_interleave_in(q1, q5, w1);\
+		}\
+		if(plainText3 != NULL){\
+			br_range_dec32le(w2, 4, plainText3);\
+			br_aes_ct64_interleave_in(q2, q6, w2);\
+		}\
+		if(plainText4 != NULL){\
+			br_range_dec32le(w3, 4, plainText4);\
+			br_aes_ct64_interleave_in(q3, q7, w3);\
+		}\
+	}\
+\
+	/* Transpose in */\
+	br_aes_ct64_ortho(q);\
+	/* Call the core encryption */\
+	br_ct64_bitslice_encrypt(comp_skey, rtype_, ctx1->Nr, q);\
+	/* Transpose out */\
+	br_aes_ct64_ortho(q);\
+\
+	/* Now extract the output */\
+	if(rtype_ == RIJNDAEL_256_256){\
+		uint32_t w_tmp[8];\
+		if(cipherText1 != NULL){\
+			br_aes_ct64_interleave_out(w0, *q0, *q4);\
+			br_aes_ct64_interleave_out(w1, *q2, *q6);\
+			br_rijndael_ct64_interleave_out(w_tmp, w0);\
+			br_range_enc32le(cipherText1, w_tmp, 8);\
+		}\
+		if(cipherText2 != NULL){\
+			br_aes_ct64_interleave_out(w2, *q1, *q5);\
+			br_aes_ct64_interleave_out(w3, *q3, *q7);\
+			br_rijndael_ct64_interleave_out(w_tmp, w2);\
+			br_range_enc32le(cipherText2, w_tmp, 8);\
+		}\
+	}\
+	else{\
+		if(cipherText1 != NULL){\
+			br_aes_ct64_interleave_out(w0, *q0, *q4);\
+			br_range_enc32le(cipherText1, w0, 4);\
+		}\
+		if(cipherText2 != NULL){\
+			br_aes_ct64_interleave_out(w1, *q1, *q5);\
+			br_range_enc32le(cipherText2, w1, 4);\
+		}\
+		if(cipherText3 != NULL){\
+			br_aes_ct64_interleave_out(w2, *q2, *q6);\
+			br_range_enc32le(cipherText3, w2, 4);\
+		}\
+		if(cipherText4 != NULL){\
+			br_aes_ct64_interleave_out(w3, *q3, *q7);\
+			br_range_enc32le(cipherText4, w3, 4);\
+		}\
+	}\
+} while(0);
 
 #endif /* __RIJNDAEL_CT64_ENC_H__ */

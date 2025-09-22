@@ -14,7 +14,11 @@
 #include "benchmark.h"
 
 #include <stdio.h>
+#if !defined(MQOM2_FOR_MUPQ)
 extern int randombytes(unsigned char* x, unsigned long long xlen);
+#else
+#include "randombytes.h"
+#endif
 
 #if defined(USE_XOF_X4)
 int SampleChallenge(const uint8_t hash[MQOM2_PARAM_DIGEST_SIZE], uint16_t i_star[MQOM2_PARAM_TAU], uint8_t nonce[4])
@@ -182,11 +186,18 @@ err:
     return ret;	
 }
 
+#if !defined(MQOM2_FOR_MUPQ)
 int crypto_sign_signature(uint8_t *sig,
                           unsigned long long *siglen,
                           const uint8_t *m,
                           unsigned long long mlen,
                           const uint8_t *sk)
+#else
+int
+crypto_sign_signature(unsigned char  *sig, size_t *siglen,
+                      const unsigned char  *m, size_t mlen,
+                      const unsigned char  *sk)
+#endif
 {
     int ret = -1;
 
@@ -209,10 +220,17 @@ err:
     return ret;
 }
 
+#if !defined(MQOM2_FOR_MUPQ)
 int crypto_sign(
         unsigned char *sm, unsigned long long *smlen,
         const unsigned char *m, unsigned long long mlen,
         const unsigned char *sk)
+#else
+int
+crypto_sign(unsigned char *sm, size_t *smlen,
+            const unsigned char *m, size_t mlen,
+            const unsigned char *sk)
+#endif
 {
     int ret = -1;
 
@@ -315,11 +333,18 @@ err:
     return ret;	
 }
 
+#if !defined(MQOM2_FOR_MUPQ)
 int crypto_sign_verify(const uint8_t *sig,
                        unsigned long long siglen,
                        const uint8_t *m,
                        unsigned long long mlen,
                        const uint8_t *pk)
+#else
+int
+crypto_sign_verify(const unsigned char  *sig, size_t siglen,
+                      const unsigned char  *m, size_t mlen,
+                      const unsigned char  *pk)
+#endif
 {
     if(siglen != (unsigned long long) MQOM2_SIG_SIZE)
         return -1;
@@ -327,10 +352,18 @@ int crypto_sign_verify(const uint8_t *sig,
     return Verify(pk, m, mlen, sig);
 }
 
+#if !defined(MQOM2_FOR_MUPQ)
 int crypto_sign_open(
         unsigned char *m, unsigned long long *mlen,
         const unsigned char *sm, unsigned long long smlen,
-        const unsigned char *pk) {
+        const unsigned char *pk)
+#else
+int
+crypto_sign_open(unsigned char *m, size_t *mlen,
+                 const unsigned char *sm, size_t smlen,
+                 const unsigned char *pk)
+#endif
+{
 
     if(smlen < (unsigned long long) MQOM2_SIG_SIZE)
         return -1;

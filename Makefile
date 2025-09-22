@@ -26,7 +26,7 @@ AR ?= ar
 RANLIB ?= ranlib
 
 # Basic CFLAGS
-CFLAGS ?= -O3 -march=native -mtune=native -Wall -Wextra -DNDEBUG
+CFLAGS ?= -O3 -march=native -mtune=native -Wall -Wextra -Wshadow -DNDEBUG
 
 # Keccak related stuff, in the form of an external library
 LIB_HASH_DIR = sha3

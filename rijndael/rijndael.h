@@ -27,7 +27,9 @@
 /* === Constant time ref case */
 #if defined(RIJNDAEL_CONSTANT_TIME_REF)
 #include "rijndael_ref.h"
-#define rijndael_ctx rijndael_ref_ctx
+#define rijndael_ctx_aes128 rijndael_ref_ctx_aes128
+#define rijndael_ctx_aes256 rijndael_ref_ctx_aes256
+#define rijndael_ctx_rijndael256 rijndael_ref_ctx_rijndael256
 #define aes128_setkey_enc aes128_ref_setkey_enc
 #define aes256_setkey_enc aes256_ref_setkey_enc
 #define rijndael256_setkey_enc rijndael256_ref_setkey_enc
@@ -49,7 +51,9 @@ static const char rijndael_conf[] = "Rijndael ref (constant time, slow)";
 /* === Constant time bitslice case */
 #if defined(RIJNDAEL_BITSLICE)
 #include "rijndael_ct64.h"
-#define rijndael_ctx rijndael_ct64_ctx
+#define rijndael_ctx_aes128 rijndael_ct64_ctx_aes128
+#define rijndael_ctx_aes256 rijndael_ct64_ctx_aes256
+#define rijndael_ctx_rijndael256 rijndael_ct64_ctx_rijndael256
 #define aes128_setkey_enc aes128_ct64_setkey_enc
 #define aes256_setkey_enc aes256_ct64_setkey_enc
 #define rijndael256_setkey_enc rijndael256_ct64_setkey_enc
@@ -75,7 +79,9 @@ static const char rijndael_conf[] = "Rijndael bitslice (constant time) (pure C)"
 /* === Non-constant time table case */
 #if defined(RIJNDAEL_TABLE)
 #include "rijndael_table.h"
-#define rijndael_ctx rijndael_table_ctx
+#define rijndael_ctx_aes128 rijndael_table_ctx_aes128
+#define rijndael_ctx_aes256 rijndael_table_ctx_aes256
+#define rijndael_ctx_rijndael256 rijndael_table_ctx_rijndael256
 #define aes128_setkey_enc aes128_table_setkey_enc
 #define aes256_setkey_enc aes256_table_setkey_enc
 #define rijndael256_setkey_enc rijndael256_table_setkey_enc
@@ -101,7 +107,9 @@ static const char rijndael_conf[] = "Rijndael table (usually NON constant time, 
 /* === Constant time AES-NI case (supposes AES-NI x86 support) */
 #if defined(RIJNDAEL_AES_NI)
 #include "rijndael_aes_ni.h"
-#define rijndael_ctx rijndael_aes_ni_ctx
+#define rijndael_ctx_aes128 rijndael_aes_ni_ctx_aes128
+#define rijndael_ctx_aes256 rijndael_aes_ni_ctx_aes256
+#define rijndael_ctx_rijndael256 rijndael_aes_ni_ctx_rijndael256
 #define aes128_setkey_enc aes128_aes_ni_setkey_enc
 #define aes256_setkey_enc aes256_aes_ni_setkey_enc
 #define rijndael256_setkey_enc rijndael256_aes_ni_setkey_enc
@@ -122,44 +130,44 @@ static const char rijndael_conf[] = "Rijndael AES-NI (constant time, x86 dedicat
 
 /* ==== Public API ==== */
 
-int aes128_setkey_enc(rijndael_ctx *ctx, const uint8_t key[16]);
-int aes256_setkey_enc(rijndael_ctx *ctx, const uint8_t key[32]);
-int rijndael256_setkey_enc(rijndael_ctx *ctx, const uint8_t key[32]);
-int aes128_enc(const rijndael_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16]);
-int aes256_enc(const rijndael_ctx *ctx, const uint8_t data_in[16], uint8_t data_out[16]);
-int rijndael256_enc(const rijndael_ctx *ctx, const uint8_t data_in[32], uint8_t data_out[32]);
+int aes128_setkey_enc(rijndael_ctx_aes128 *ctx, const uint8_t key[16]);
+int aes256_setkey_enc(rijndael_ctx_aes256 *ctx, const uint8_t key[32]);
+int rijndael256_setkey_enc(rijndael_ctx_rijndael256 *ctx, const uint8_t key[32]);
+int aes128_enc(const rijndael_ctx_aes128 *ctx, const uint8_t data_in[16], uint8_t data_out[16]);
+int aes256_enc(const rijndael_ctx_aes256 *ctx, const uint8_t data_in[16], uint8_t data_out[16]);
+int rijndael256_enc(const rijndael_ctx_rijndael256 *ctx, const uint8_t data_in[32], uint8_t data_out[32]);
 /* x2, x4 and x8 encryption APIs */
 /* == */
-int aes128_enc_x2(const rijndael_ctx *ctx1, const rijndael_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16]);
-int aes128_enc_x4(const rijndael_ctx *ctx1, const rijndael_ctx *ctx2, const rijndael_ctx *ctx3, const rijndael_ctx *ctx4,
+int aes128_enc_x2(const rijndael_ctx_aes128 *ctx1, const rijndael_ctx_aes128 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16]);
+int aes128_enc_x4(const rijndael_ctx_aes128 *ctx1, const rijndael_ctx_aes128 *ctx2, const rijndael_ctx_aes128 *ctx3, const rijndael_ctx_aes128 *ctx4,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16]);
-int aes128_enc_x8(const rijndael_ctx *ctx1, const rijndael_ctx *ctx2, const rijndael_ctx *ctx3, const rijndael_ctx *ctx4,
-                  const rijndael_ctx *ctx5, const rijndael_ctx *ctx6, const rijndael_ctx *ctx7, const rijndael_ctx *ctx8,
+int aes128_enc_x8(const rijndael_ctx_aes128 *ctx1, const rijndael_ctx_aes128 *ctx2, const rijndael_ctx_aes128 *ctx3, const rijndael_ctx_aes128 *ctx4,
+                  const rijndael_ctx_aes128 *ctx5, const rijndael_ctx_aes128 *ctx6, const rijndael_ctx_aes128 *ctx7, const rijndael_ctx_aes128 *ctx8,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
                 uint8_t cipherText5[16], uint8_t cipherText6[16], uint8_t cipherText7[16], uint8_t cipherText8[16]);
 /* == */
-int aes256_enc_x2(const rijndael_ctx *ctx1, const rijndael_ctx *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16]);
-int aes256_enc_x4(const rijndael_ctx *ctx1, const rijndael_ctx *ctx2, const rijndael_ctx *ctx3, const rijndael_ctx *ctx4,
+int aes256_enc_x2(const rijndael_ctx_aes256 *ctx1, const rijndael_ctx_aes256 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16]);
+int aes256_enc_x4(const rijndael_ctx_aes256 *ctx1, const rijndael_ctx_aes256 *ctx2, const rijndael_ctx_aes256 *ctx3, const rijndael_ctx_aes256 *ctx4,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16]);
-int aes256_enc_x8(const rijndael_ctx *ctx1, const rijndael_ctx *ctx2, const rijndael_ctx *ctx3, const rijndael_ctx *ctx4,
-		  const rijndael_ctx *ctx5, const rijndael_ctx *ctx6, const rijndael_ctx *ctx7, const rijndael_ctx *ctx8,
+int aes256_enc_x8(const rijndael_ctx_aes256 *ctx1, const rijndael_ctx_aes256 *ctx2, const rijndael_ctx_aes256 *ctx3, const rijndael_ctx_aes256 *ctx4,
+		  const rijndael_ctx_aes256 *ctx5, const rijndael_ctx_aes256 *ctx6, const rijndael_ctx_aes256 *ctx7, const rijndael_ctx_aes256 *ctx8,
                 const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
                 const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
                 uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
                 uint8_t cipherText5[16], uint8_t cipherText6[16], uint8_t cipherText7[16], uint8_t cipherText8[16]);
 /* == */
-int rijndael256_enc_x2(const rijndael_ctx *ctx1, const rijndael_ctx *ctx2,
+int rijndael256_enc_x2(const rijndael_ctx_rijndael256 *ctx1, const rijndael_ctx_rijndael256 *ctx2,
                         const uint8_t plainText1[32], const uint8_t plainText2[32],
                         uint8_t cipherText1[32], uint8_t cipherText2[32]);
-int rijndael256_enc_x4(const rijndael_ctx *ctx1, const rijndael_ctx *ctx2, const rijndael_ctx *ctx3, const rijndael_ctx *ctx4,
+int rijndael256_enc_x4(const rijndael_ctx_rijndael256 *ctx1, const rijndael_ctx_rijndael256 *ctx2, const rijndael_ctx_rijndael256 *ctx3, const rijndael_ctx_rijndael256 *ctx4,
                 const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
                 uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32]);
-int rijndael256_enc_x8(const rijndael_ctx *ctx1, const rijndael_ctx *ctx2, const rijndael_ctx *ctx3, const rijndael_ctx *ctx4,
-		  const rijndael_ctx *ctx5, const rijndael_ctx *ctx6, const rijndael_ctx *ctx7, const rijndael_ctx *ctx8,
+int rijndael256_enc_x8(const rijndael_ctx_rijndael256 *ctx1, const rijndael_ctx_rijndael256 *ctx2, const rijndael_ctx_rijndael256 *ctx3, const rijndael_ctx_rijndael256 *ctx4,
+		  const rijndael_ctx_rijndael256 *ctx5, const rijndael_ctx_rijndael256 *ctx6, const rijndael_ctx_rijndael256 *ctx7, const rijndael_ctx_rijndael256 *ctx8,
                 const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
                 const uint8_t plainText5[32], const uint8_t plainText6[32], const uint8_t plainText7[32], const uint8_t plainText8[32],
                 uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32],

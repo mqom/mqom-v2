@@ -6,8 +6,10 @@
 #include <string.h>
 #include <stdint.h>
 
+#if !defined(NO_EMBEDDED_SRAM_SECTION)
 /* Some macro useful for global variables space accounting in SRAM */
 #define EMBEDDED_SRAM __attribute__((section(".embedded_sram_tables")))
+#endif
 
 /* Malloc redirection to allow for max allocation accounting */
 #if defined(BENCHMARK) || defined(BENCHMARK_CYCLES) || defined(BENCHMARK_TIME)
