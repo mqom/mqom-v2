@@ -580,7 +580,7 @@ elif arguments.command == 'test':
     if arguments.compare_kat != None:
         # Is it a zip file or a folder?
         if ".zip" in arguments.compare_kat:
-            import zipfile
+            import zipfile, re
             try:
                 zf = zipfile.ZipFile(arguments.compare_kat)
                 tempdir_obj = tempdir()
@@ -589,8 +589,22 @@ elif arguments.command == 'test':
             except:
                 print("Error: cannot handle provided ZIP package %s" % arguments.compare_kat)
                 sys.exit(-1)
-            # The uncompressed folder should contain a KAT folder
-            KAT_Folder = tempdir_name + "/submission_package_v2/KAT"
+            # The uncompressed folder should contain a KAT folder, find it
+            subm_pack = None
+            for root, dirs, files in os.walk(tempdir_name):
+                for d in dirs:
+                    subm_pack = re.search(r'submission_package_v2.*', d)
+                    print(d)
+                    if subm_pack is not None:
+                        subm_pack = subm_pack[0]
+                        break
+                if subm_pack is not None:
+                    break
+            if subm_pack is None:
+                print("Error: cannot find submission package in provided ZIP package %s" % arguments.compare_kat)
+                sys.exit(-1)
+            KAT_Folder = tempdir_name + '/' + subm_pack + "/KAT"
+            print(KAT_Folder)
             if not os.path.isdir(KAT_Folder):
                 print("Error: no KAT folder in the uncompressed ZIP package %s" % arguments.compare_kat)
                 sys.exit(-1)
