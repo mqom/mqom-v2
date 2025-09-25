@@ -14,10 +14,7 @@ http://creativecommons.org/publicdomain/zero/1.0/
 #include "KeccakSpongetimes4.h"
 
 #ifdef XKCP_has_KeccakP1600
-#if !defined(SUPERCOP)
 #include "KeccakP-1600-times4-SnP.h"
-#else
-#include <libkeccak.a.headers/KeccakP-1600-times4-SnP.h>
 #endif
 
 #define prefix KeccakWidth1600times4
@@ -34,4 +31,3 @@ http://creativecommons.org/publicdomain/zero/1.0/
 #undef PlSnP_width
 #undef PlSnP_Permute
 #undef PlSnP_FastLoop_Absorb
-#endif

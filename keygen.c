@@ -1,3 +1,6 @@
+#ifdef SUPERCOP
+#include "crypto_sign.h"
+#endif
 #include "keygen.h"
 
 #ifndef MEMORY_EFFICIENT_KEYGEN
@@ -149,15 +152,30 @@ err:
 #endif
 
 #if !defined(MQOM2_FOR_MUPQ)
+#ifdef SUPERCOP
+extern void randombytes(unsigned char* x, unsigned long long xlen);
+#else
 extern int randombytes(unsigned char* x, unsigned long long xlen);
+#endif
 #else
 #include "randombytes.h"
 #endif
 int crypto_sign_keypair(unsigned char *pk, unsigned char *sk) {
+	int ret = -1;
+
 	/* Sample the seed key */
 	uint8_t seed_key[2 * MQOM2_PARAM_SEED_SIZE];
+
+#ifdef SUPERCOP
 	randombytes(seed_key, 2 * MQOM2_PARAM_SEED_SIZE);
+#else
+	ret = randombytes(seed_key, 2 * MQOM2_PARAM_SEED_SIZE); ERR(ret, err);
+#endif
 
 	/* Run deterministic key generation */
-    return KeyGen(seed_key, sk, pk);
+	ret = KeyGen(seed_key, sk, pk); ERR(ret, err);
+
+	ret = 0;
+err:
+	return ret;
 }

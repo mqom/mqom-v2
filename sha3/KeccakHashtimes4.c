@@ -14,11 +14,6 @@ http://creativecommons.org/publicdomain/zero/1.0/
 #include <string.h>
 #include "KeccakHashtimes4.h"
 
-#if defined(SUPERCOP)
-#define KECCAK_FAIL FAIL
-#define KECCAK_SUCCESS SUCCESS
-#endif
-
 /* ---------------------------------------------------------------- */
 
 WEAK HashReturn Keccak_HashInitializetimes4(Keccak_HashInstancetimes4 *instance, unsigned int rate, unsigned int capacity, unsigned int hashbitlen, unsigned char delimitedSuffix)

@@ -15,7 +15,11 @@
 
 #include <stdio.h>
 #if !defined(MQOM2_FOR_MUPQ)
+#ifdef SUPERCOP
+extern void randombytes(unsigned char* x, unsigned long long xlen);
+#else
 extern int randombytes(unsigned char* x, unsigned long long xlen);
+#endif
 #else
 #include "randombytes.h"
 #endif
@@ -203,11 +207,18 @@ crypto_sign_signature(unsigned char  *sig, size_t *siglen,
 
     // Sample mseed
     uint8_t mseed[MQOM2_PARAM_SEED_SIZE];
+#ifdef SUPERCOP
+    randombytes(mseed, MQOM2_PARAM_SEED_SIZE);
+#else
     ret = randombytes(mseed, MQOM2_PARAM_SEED_SIZE); ERR(ret, err);
-
+#endif
     // Sample salt
     uint8_t salt[MQOM2_PARAM_SALT_SIZE];
+#ifdef SUPERCOP
+    randombytes(salt, MQOM2_PARAM_SALT_SIZE);
+#else
     ret = randombytes(salt, MQOM2_PARAM_SALT_SIZE); ERR(ret, err);
+#endif
 
     // Build the signature
     ret = Sign(sk, m, mlen, salt, mseed, sig); ERR(ret, err);
