@@ -319,7 +319,7 @@ static inline void gf256_gf2_constant_vect_mult_avx512(uint8_t a_gf256, const ui
 		uint32_t ceil_len_bits = (len + 7) / 8;
                 __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << ceil_len_bits) - 1, &b_gf2[(i / 8)]);
                 /* Transfer to our 64 bits mask */
-                __mmask64 mask = (__mmask64)_mm_movepi64_pi64(mask_128);
+                __mmask64 mask = (__mmask64)_mm_movepi64_pi64(mask_128) & (((__mmask64)1 << len) - 1);
 		__m512i _c = _mm512_mask_mov_epi8(zero, mask, _a);
 		store_incomplete_m512(_c, &c_gf256[i], len);
         }
@@ -345,7 +345,7 @@ static inline uint8_t gf2_gf256_vect_mult_avx512(const uint8_t *a_gf2, const uin
 		uint32_t ceil_len_bits = (len + 7) / 8;
                 __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << ceil_len_bits) - 1, &a_gf2[(i / 8)]);
                 /* Transfer to our 64 bits mask */
-                __mmask64 mask = (__mmask64)_mm_movepi64_pi64(mask_128);
+                __mmask64 mask = (__mmask64)_mm_movepi64_pi64(mask_128) & (((__mmask64)1 << len) - 1);
                 accu ^= _mm512_mask_loadu_epi8(zero, mask, (int const*)&b_gf256[i]);
         }
 
@@ -679,7 +679,7 @@ static inline void gf256to2_gf2_constant_vect_mult_avx512(uint16_t a_gf256to2, c
 		uint32_t ceil_len_bits = (len + 7) / 8;
                 __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << ceil_len_bits) - 1, &b_gf2[(i / 8)]);
                 /* Transfer to our 64 bits mask */
-                __mmask64 mask64 = (__mmask64)_mm_movepi64_pi64(mask_128);
+                __mmask64 mask64 = (__mmask64)_mm_movepi64_pi64(mask_128) & (((__mmask64)1 << len) - 1);
 		__mmask32 mask = (__mmask32)mask64;
 		__m512i _c = _mm512_mask_mov_epi16(zero, mask, _a);
 		store_incomplete_m512(_c, (uint8_t*)&c_gf256to2[i], 2 * len);
@@ -743,7 +743,7 @@ static inline uint16_t gf2_gf256to2_vect_mult_avx512(const uint8_t *a_gf2, const
 		/* Load 32 bits max */
                 __m128i mask_128 = _mm_mask_loadu_epi8(zero_128, ((__mmask16)1 << ceil_len_bits) - 1, &a_gf2[(i / 8)]);
                 /* Transfer to our 32 bits mask */
-                __mmask64 mask64 = (__mmask64)_mm_movepi64_pi64(mask_128);
+                __mmask64 mask64 = (__mmask64)_mm_movepi64_pi64(mask_128) & (((__mmask64)1 << len) - 1);
 		__mmask32 mask = (__mmask32)mask64;
                 accu ^= _mm512_mask_loadu_epi16(zero, mask, (int const*)&b_gf256to2[i]);
         }
