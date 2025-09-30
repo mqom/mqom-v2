@@ -17,10 +17,15 @@ static inline uint8_t gf2_mult_ref(uint8_t a, uint8_t b)
 static inline void gf2_constant_vect_mult_ref(uint8_t b, const uint8_t *a, uint8_t *c, uint32_t len)
 {
 	uint32_t i;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
+	uint8_t b_ = b & mask;
 
 	/* Constant-time selection */
 	for(i = 0; i < (len / 8); i++){
-		c[i] = -(b & 1) & a[i];
+		c[i] = -(b_) & a[i];
 	}
 
 	return;
@@ -33,7 +38,12 @@ static inline void gf2_constant_vect_mult_ref(uint8_t b, const uint8_t *a, uint8
 static inline uint8_t gf2_vect_mult_ref(const uint8_t *a, const uint8_t *b, uint32_t len)
 {
 	uint32_t i;
-	uint8_t acc, res;
+	uint8_t res;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t acc;
+	volatile uint8_t mask = 1;
 
 	acc = 0;
 	for(i = 0; i < (len / 8); i++){
@@ -42,7 +52,7 @@ static inline uint8_t gf2_vect_mult_ref(const uint8_t *a, const uint8_t *b, uint
 	/* Compute the parity of acc as the output result */
 	res = 0;
 	for(i = 0; i < 8; i++){
-		res ^= (acc >> i) & 1;
+		res ^= (acc >> i) & mask;
 	}
 
 	return res;
@@ -63,6 +73,10 @@ static inline void gf2_mat_transpose_ref(const uint8_t *A, uint8_t *B, uint32_t 
 {
 	uint32_t i, j;
 	uint32_t msize = (n / 8);
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
 
 	/* Zeroize the matrix */
 	for(i = 0; i < (n * msize); i++){
@@ -72,7 +86,7 @@ static inline void gf2_mat_transpose_ref(const uint8_t *A, uint8_t *B, uint32_t 
 		case REG:{
 			for(i = 0; i < n; i++){
 				for(j = 0; j < n; j++){					
-					B[(n * j / 8) + (i / 8)] |= ((A[(n * i / 8) + (j / 8)] >> (j % 8)) & 1) << (i % 8);
+					B[(n * j / 8) + (i / 8)] |= ((A[(n * i / 8) + (j / 8)] >> (j % 8)) & mask) << (i % 8);
 				} 
 			}
 			break;
@@ -80,7 +94,7 @@ static inline void gf2_mat_transpose_ref(const uint8_t *A, uint8_t *B, uint32_t 
 		case TRI_SUP:{
 			for(i = 0; i < n; i++){
 				for(j = i; j < n; j++){					
-					B[(n * j / 8) + (i / 8)] |= ((A[(n * i / 8) + (j / 8)] >> (j % 8)) & 1) << (i % 8);
+					B[(n * j / 8) + (i / 8)] |= ((A[(n * i / 8) + (j / 8)] >> (j % 8)) & mask) << (i % 8);
 				} 
 			}
 			break;
@@ -88,7 +102,7 @@ static inline void gf2_mat_transpose_ref(const uint8_t *A, uint8_t *B, uint32_t 
 		case TRI_INF:{
 			for(i = 0; i < n; i++){
 				for(j = 0; j <= i; j++){					
-					B[(n * j / 8) + (i / 8)] |= ((A[(n * i / 8) + (j / 8)] >> (j % 8)) & 1) << (i % 8);
+					B[(n * j / 8) + (i / 8)] |= ((A[(n * i / 8) + (j / 8)] >> (j % 8)) & mask) << (i % 8);
 				} 
 			}
 			break;
@@ -206,7 +220,7 @@ static inline uint8_t gf256_mult_ref(uint8_t x, uint8_t y)
 {
 	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
  	 * optimizations that can lead to non-constant time operations.
- 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on thi*/
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
 	volatile uint8_t res;
 	volatile uint8_t mask = 1;
 
@@ -327,9 +341,13 @@ static inline void gf256_mat_mult_ref(const uint8_t *A, const uint8_t *X, uint8_
 static inline void gf2_gf256_constant_vect_mult_ref(uint8_t a_gf2, const uint8_t *b_gf256, uint8_t *c_gf256, uint32_t n)
 {
 	uint32_t i;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
 
 	for(i = 0; i < n; i++){
-		c_gf256[i] = b_gf256[i] & -(a_gf2 & 1);
+		c_gf256[i] = b_gf256[i] & -(a_gf2 & mask);
 	}
 
 	return;
@@ -341,9 +359,13 @@ static inline void gf2_gf256_constant_vect_mult_ref(uint8_t a_gf2, const uint8_t
 static inline void gf256_gf2_constant_vect_mult_ref(uint8_t a_gf256, const uint8_t *b_gf2, uint8_t *c_gf256, uint32_t n)
 {
 	uint32_t i;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
 
 	for(i = 0; i < n; i++){
-		c_gf256[i] = a_gf256 & -((b_gf2[i / 8] >> (i % 8)) & 1);
+		c_gf256[i] = a_gf256 & -((b_gf2[i / 8] >> (i % 8)) & mask);
 	}
 
 	return;
@@ -356,11 +378,15 @@ static inline uint8_t gf2_gf256_vect_mult_ref(const uint8_t *a_gf2, const uint8_
 {
 	uint32_t i;
 	uint8_t res;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
 
 	res = 0;
 	for(i = 0; i < n; i++){
 		/* Conditionally add the element from GF(256) in a constant time fashion */
-		res ^= b_gf256[i] & -((a_gf2[i / 8] >> (i % 8)) & 1);
+		res ^= b_gf256[i] & -((a_gf2[i / 8] >> (i % 8)) & mask);
 	}
 
 	return res;
@@ -406,7 +432,7 @@ static inline uint8_t gf256_mult_0xBC_ref(const uint8_t x)
 {
 	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
  	 * optimizations that can lead to non-constant time operations.
- 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on thi*/
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
 	volatile uint8_t res;
 
 	res = x;
@@ -422,8 +448,13 @@ static inline uint8_t gf256_mult_0xBC_ref(const uint8_t x)
 }
 static inline uint8_t gf4_gf256_mult_ref(uint8_t a_gf4, const uint8_t b_gf256)
 {
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
+
 	uint8_t x = gf256_mult_0xBC_ref(b_gf256);
-	uint8_t res = (-(a_gf4>>1) & x) ^ (-(a_gf4 & 1) & b_gf256);
+	uint8_t res = (-(a_gf4>>1) & x) ^ (-(a_gf4 & mask) & b_gf256);
 	return res;
 }
 
@@ -494,16 +525,25 @@ static inline void gf256_gf4_mat_mult_ref(const uint8_t *A, const uint8_t *X, ui
  */
 static inline uint8_t gf16_gf256_mult_ref(uint8_t a_gf16, const uint8_t b_gf256)
 {
-	uint16_t a_gf256 = (a_gf16 & 1) ^ (-((a_gf16>>1) & 1) & 0xE0) ^ (-((a_gf16>>2) & 1) & 0x5D) ^ (-(a_gf16>>3) & 0xB0);
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
+
+	uint16_t a_gf256 = (a_gf16 & mask) ^ (-((a_gf16>>1) & mask) & 0xE0) ^ (-((a_gf16>>2) & mask) & 0x5D) ^ (-(a_gf16>>3) & 0xB0);
 	return gf256_mult_ref(a_gf256, b_gf256);
 }
 
 static inline void gf256_vect_lift_from_gf16_ref(const uint8_t *a_gf16, uint8_t *b_gf256, uint32_t n) {
 	uint32_t i;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
 
 	for(i = 0; i < n; i++){
 		uint8_t x_gf16 = (a_gf16[i/2] >> (4*(i%2))) & 0x0F;
-		b_gf256[i] = (x_gf16 & 1) ^ (-((x_gf16>>1) & 1) & 0xE0) ^ (-((x_gf16>>2) & 1) & 0x5D) ^ (-(x_gf16>>3) & 0xB0);
+		b_gf256[i] = (x_gf16 & mask) ^ (-((x_gf16>>1) & mask) & 0xE0) ^ (-((x_gf16>>2) & mask) & 0x5D) ^ (-(x_gf16>>3) & 0xB0);
 	}
 
 	return;
@@ -690,9 +730,13 @@ static inline void gf256to2_mat_mult_ref(const uint16_t *A, const uint16_t *X, u
 static inline void gf2_gf256to2_constant_vect_mult_ref(uint8_t a_gf2, const uint16_t *b_gf256to2, uint16_t *c_gf256to2, uint32_t n)
 {
 	uint32_t i;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
 
 	for(i = 0; i < n; i++){
-		c_gf256to2[i] = b_gf256to2[i] & -(uint16_t)(a_gf2 & 1);
+		c_gf256to2[i] = b_gf256to2[i] & -(uint16_t)(a_gf2 & mask);
 	}
 
 	return;
@@ -704,9 +748,13 @@ static inline void gf2_gf256to2_constant_vect_mult_ref(uint8_t a_gf2, const uint
 static inline void gf256to2_gf2_constant_vect_mult_ref(uint16_t a_gf256to2, const uint8_t *b_gf2, uint16_t *c_gf256to2, uint32_t n)
 {
 	uint32_t i;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
 
 	for(i = 0; i < n; i++){
-		c_gf256to2[i] = a_gf256to2 & -(uint16_t)((b_gf2[i / 8] >> (i % 8)) & 1);
+		c_gf256to2[i] = a_gf256to2 & -(uint16_t)((b_gf2[i / 8] >> (i % 8)) & mask);
 	}
 
 	return;
@@ -719,10 +767,14 @@ static inline uint16_t gf2_gf256to2_vect_mult_ref(const uint8_t *a_gf2, const ui
 {
 	uint32_t i;
 	uint16_t res;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
 
 	res = 0;
 	for(i = 0; i < n; i++){
-		res ^= b_gf256to2[i] & -(uint16_t)((a_gf2[i / 8] >> (i % 8)) & 1);
+		res ^= b_gf256to2[i] & -(uint16_t)((a_gf2[i / 8] >> (i % 8)) & mask);
 	}
 
 	return res;
@@ -915,10 +967,14 @@ static inline uint16_t gf16_gf256to2_mult_ref(uint8_t a_gf16, const uint16_t b_g
 
 static inline void gf256to2_vect_lift_from_gf16_ref(const uint8_t *a_gf16, uint16_t *b_gf256to2, uint32_t n) {
 	uint32_t i;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t mask = 1;
 
 	for(i = 0; i < n; i++){
 		uint8_t x_gf16 = (a_gf16[i/2] >> (4*(i%2))) & 0x0F;
-		b_gf256to2[i] = (x_gf16 & 1) ^ (-((x_gf16>>1) & 1) & 0xE0) ^ (-((x_gf16>>2) & 1) & 0x5D) ^ (-(x_gf16>>3) & 0xB0);
+		b_gf256to2[i] = (x_gf16 & mask) ^ (-((x_gf16>>1) & mask) & 0xE0) ^ (-((x_gf16>>2) & mask) & 0x5D) ^ (-(x_gf16>>3) & 0xB0);
 	}
 
 	return;
