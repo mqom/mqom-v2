@@ -2,6 +2,10 @@
 #include "ggm_tree.h"
 #include "benchmark.h"
 
+#if defined(SUPERCOP)
+#include "crypto_declassify.h"
+#endif
+
 #ifndef BLC_NB_SEED_COMMITMENTS_PER_HASH_UPDATE
 /* If not defined by the user, default to 1 */
 #define BLC_NB_SEED_COMMITMENTS_PER_HASH_UPDATE 1
@@ -395,6 +399,11 @@ int BLC_Open_memopt(const blc_key_memopt_t* key, const uint16_t i_star[MQOM2_PAR
     uint8_t* partial_delta_x = &opening[MQOM2_PARAM_TAU*(MQOM2_PARAM_SEED_SIZE*MQOM2_PARAM_NB_EVALS_LOG+MQOM2_PARAM_DIGEST_SIZE)];
 
     for(e = 0; e < MQOM2_PARAM_TAU; e++){
+#if defined(SUPERCOP)
+        /* XXX: NOTE: we explicitly declassify i_star[e] as it is public data but comes from a dataflow involving secret data
+         * through hashing */
+	crypto_declassify(&i_star[e], sizeof(i_star[e]));
+#endif
         ret = GGMTree_ExpandPath(key->salt, key->rseed[e], key->delta, e, i_star[e], (uint8_t(*)[MQOM2_PARAM_SEED_SIZE]) &path[e*(MQOM2_PARAM_NB_EVALS_LOG*MQOM2_PARAM_SEED_SIZE)], lseed); ERR(ret, err);
         TweakSalt(key->salt, tweaked_salt, 0, e, 0);
         ret = enc_key_sched(&ctx_seed_commit1, tweaked_salt); ERR(ret, err);

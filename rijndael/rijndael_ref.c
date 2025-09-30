@@ -29,16 +29,20 @@ static const uint8_t rcon[256] = {
 /* Multiplication and squaring over the Rijndael Galois field */
 #define RIJNDAEL_MODULUS 0x1B /* The Rijndael field GF(2^8) modulus */
 static inline uint8_t gmul(uint8_t x, uint8_t y){
-	uint8_t res;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+	 * optimizations that can lead to non-constant time operations.
+	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
+	volatile uint8_t res;
+	volatile uint8_t mask = 1;
 
-	res = (-(y >> 7) & x);
-	res = (-(y >> 6 & 1) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
-	res = (-(y >> 5 & 1) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
-	res = (-(y >> 4 & 1) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
-	res = (-(y >> 3 & 1) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
-	res = (-(y >> 2 & 1) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
-	res = (-(y >> 1 & 1) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
-	res = (-(y      & 1) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
+	res = (-(y >> 7 & mask) & x);
+	res = (-(y >> 6 & mask) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
+	res = (-(y >> 5 & mask) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
+	res = (-(y >> 4 & mask) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
+	res = (-(y >> 3 & mask) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
+	res = (-(y >> 2 & mask) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
+	res = (-(y >> 1 & mask) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
+	res = (-(y      & mask) & x) ^ (-(res >> 7) & RIJNDAEL_MODULUS) ^ (res << 1);
 
 	return res;
 }

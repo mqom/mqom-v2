@@ -1,5 +1,6 @@
 #ifdef SUPERCOP
 #include "crypto_sign.h"
+#include "crypto_declassify.h"
 #else
 #include "api.h"
 #endif
@@ -59,6 +60,10 @@ int SampleChallenge(const uint8_t hash[MQOM2_PARAM_DIGEST_SIZE], uint16_t i_star
                 _i_star[i][e] = (tmp[i][2*e] + 256*tmp[i][2*e+1]) & ((1<<MQOM2_PARAM_NB_EVALS_LOG)-1);
             }
             val = (tmp[i][2*MQOM2_PARAM_TAU] + tmp[i][2*MQOM2_PARAM_TAU+1]*256) & ((1<<MQOM2_PARAM_W)-1);
+#ifdef SUPERCOP
+            /* Rejection loop declassification for SUPERCOP */
+            crypto_declassify(&val, sizeof(val));
+#endif
             if(val == 0){
                 goto out_loop;
             }

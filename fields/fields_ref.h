@@ -204,16 +204,20 @@ static inline uint8_t gf256_mult_ref(uint8_t x, uint8_t y)
 #else
 static inline uint8_t gf256_mult_ref(uint8_t x, uint8_t y)
 {
-	uint8_t res;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on thi*/
+	volatile uint8_t res;
+	volatile uint8_t mask = 1;
 
-	res = (-(y >> 7) & x);
-	res = (-(y >> 6 & 1) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y >> 5 & 1) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y >> 4 & 1) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y >> 3 & 1) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y >> 2 & 1) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y >> 1 & 1) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y      & 1) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
+	res = (-(y >> 7 & mask) & x);
+	res = (-(y >> 6 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
+	res = (-(y >> 5 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
+	res = (-(y >> 4 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
+	res = (-(y >> 3 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
+	res = (-(y >> 2 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
+	res = (-(y >> 1 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
+	res = (-(y      & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
 
 	return res;
 }
@@ -400,7 +404,10 @@ static inline void gf256_mat_transpose_ref(const uint8_t *A, uint8_t *B, uint32_
 // 0xBC = 0b10111100
 static inline uint8_t gf256_mult_0xBC_ref(const uint8_t x)
 {
-	uint8_t res;
+	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
+ 	 * optimizations that can lead to non-constant time operations.
+ 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on thi*/
+	volatile uint8_t res;
 
 	res = x;
 	res =     (-(res >> 7) & GF256_MODULUS) ^ (res << 1);

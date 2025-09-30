@@ -1,6 +1,9 @@
 #include "blc_default.h"
 #include "ggm_tree.h"
 #include "benchmark.h"
+#if defined(SUPERCOP)
+#include "crypto_declassify.h"
+#endif
 
 /* SeedCommit variants
  * NOTE: we factorize the key schedule, the tweaked salt is inside the encryption context
@@ -260,6 +263,11 @@ int BLC_Open_default(const blc_key_default_t* key, const uint16_t i_star[MQOM2_P
     uint8_t* partial_delta_x = &opening[MQOM2_PARAM_TAU*(MQOM2_PARAM_SEED_SIZE*MQOM2_PARAM_NB_EVALS_LOG+MQOM2_PARAM_DIGEST_SIZE)];
 
     for(e = 0; e < MQOM2_PARAM_TAU; e++){
+#if defined(SUPERCOP)
+        /* XXX: NOTE: we explicitly declassify i_star[e] as it is public data but comes from a dataflow involving secret data
+         * through hashing */
+        crypto_declassify(&i_star[e], sizeof(i_star[e]));
+#endif 
 #ifndef BLC_KEEP_ALL_TREES_IN_MEMORY
         ret = GGMTree_ExpandPath(key->salt, key->rseed[e], key->delta, e, i_star[e], (uint8_t(*)[MQOM2_PARAM_SEED_SIZE]) &path[e*(MQOM2_PARAM_NB_EVALS_LOG*MQOM2_PARAM_SEED_SIZE)], lseed); ERR(ret, err);
         TweakSalt(key->salt, tweaked_salt, 0, e, 0);
