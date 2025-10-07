@@ -216,34 +216,12 @@ static inline uint8_t gf256_mult_ref(uint8_t x, uint8_t y)
         return res;
 }
 #else
-static inline uint8_t gf256_mult_ref(uint8_t x, uint8_t y)
-{
-	/* XXX: NOTE: the 'volatile' keyword is here to avoid compiler
- 	 * optimizations that can lead to non-constant time operations.
- 	 * See https://blog.cr.yp.to/20240803-clang.html for more details on this */
-	volatile uint8_t res;
-	volatile uint8_t mask = 1;
-
-	res = (-(y >> 7 & mask) & x);
-	res = (-(y >> 6 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y >> 5 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y >> 4 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y >> 3 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y >> 2 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y >> 1 & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-	res = (-(y      & mask) & x) ^ (-(res >> 7) & GF256_MODULUS) ^ (res << 1);
-
-	return res;
-}
-
-#if !defined(NO_FIELDS_REF_SWAR_OPT)
-
-/* "Vectorized" SWAR (SIMD Within A Register) */
-#define GF256_MULT_X4
+/* 32-bit based multiplication */
+#define GF256_MODULUS_X4 0x1b1b1b1bu
 static inline uint32_t gf256_lane_xtime_x4(uint32_t v) {
     uint32_t msb = v & 0x80808080u;
     uint32_t shifted = (v & 0x7f7f7f7fu) << 1;
-    uint32_t red = (msb >> 7) * GF256_MODULUS;
+    uint32_t red = (msb - (msb >> 7)) & GF256_MODULUS_X4;
     return shifted ^ red;
 }
 static inline uint32_t gf256_mult4_ref(uint32_t x, uint32_t y)
@@ -251,7 +229,10 @@ static inline uint32_t gf256_mult4_ref(uint32_t x, uint32_t y)
     uint32_t acc = 0, a = x;
 
 #define STEP(i) do { \
-    uint32_t m = ((y >> (i)) & 0x01010101u) * 0xff; \
+    uint32_t m = ( (y >> (i)) & 0x01010101u ); \
+    m |= (m << 1) & 0xFEFEFEFEu;               \
+    m |= (m << 2) & 0xFCFCFCFCu;               \
+    m |= (m << 4) & 0xF0F0F0F0u;               \
     acc ^= (a & m); \
     a = gf256_lane_xtime_x4(a); \
 } while (0)
@@ -262,8 +243,17 @@ static inline uint32_t gf256_mult4_ref(uint32_t x, uint32_t y)
 #undef STEP
     return acc;
 }
-#endif /* NO_FIELDS_REF_SWAR_OPT */
 
+static inline uint8_t gf256_mult_ref(uint8_t x, uint8_t y)
+{
+	/* XXX: NOTE: we perform the GF(256) multiplication on 32 bits as it is more optimal on most platforms */
+	return (uint8_t)gf256_mult4_ref((uint32_t)x, (uint32_t)y);
+}
+
+#if !defined(NO_FIELDS_REF_SWAR_OPT)
+/* "Vectorized" SWAR (SIMD Within A Register) */
+#define GF256_MULT_X4
+#endif /* NO_FIELDS_REF_SWAR_OPT */
 #endif
 
 /*
