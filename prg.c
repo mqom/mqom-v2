@@ -11,8 +11,20 @@ static inline int prg_key_sched(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], uint3
     }
     else{
         /* The cache line is inactive: perform the computation and fill it */
+	if(cache != NULL){
+		/* First, uninit the enc context (only when we have a cache).
+		 * This allows to avoid spurious deallocations when calling
+		 * enc_key_sched below.
+		 */
+		enc_uninit_ctx(ctx);
+	}
         /* Tweak the salt and perform the key schedule */
         TweakSalt(salt, tweaked_salt, 3, e, i);
+	/* XXX: NOTE: we invalidate the entry *before* setting it to trigger
+	 * potential cleansing of the enc context by the lower layers (e.g. pointers
+	 * maintenance, etc.)
+	 */
+	invalidate_entry_prg_cache(cache, i);
         ret = enc_key_sched(ctx, tweaked_salt); ERR(ret, err);
         set_entry_prg_cache(cache, i, ctx);
     }
@@ -30,7 +42,7 @@ int PRG_memopt(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], uint32_t e, const uint
 {
     int ret = -1;
     uint32_t i, start_block, end_block, treated_bytes;
-    enc_ctx ctx;
+    enc_ctx ctx = { 0 };
     uint8_t linortho_seed[MQOM2_PARAM_SEED_SIZE];
 
     /* Compute Psi(seed) once and for all */
@@ -70,6 +82,12 @@ int PRG_memopt(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], uint32_t e, const uint
    
     ret = 0;
 err:
+    /* XXX: NOTE: we do NOT clean the contexts when using a cache as these must be preserved
+     * and will be cleaned when the cache is destroyed. 
+     */
+    if(cache == NULL){
+        enc_clean_ctx(&ctx);
+    }
     return ret;
 }
 
@@ -77,9 +95,9 @@ int PRG(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], uint32_t e, const uint8_t see
 {    
     int ret = -1;
     uint32_t i, filled_blocks;
-    enc_ctx ctx1, ctx2, ctx3, ctx4;
+    enc_ctx ctx1 = { 0 }, ctx2 = { 0 }, ctx3 = { 0 }, ctx4 = { 0 };
 #ifdef USE_ENC_X8
-    enc_ctx ctx5, ctx6, ctx7, ctx8; 
+    enc_ctx ctx5 = { 0 }, ctx6 = { 0 }, ctx7 = { 0 }, ctx8 = { 0 };
     uint32_t num_blocks = 8;
 #else
     uint32_t num_blocks = 4;
@@ -268,6 +286,21 @@ int PRG(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], uint32_t e, const uint8_t see
     
     ret = 0;
 err:
+    /* XXX: NOTE: we do NOT clean the contexts when using a cache as these must be preserved
+     * and will be cleaned when the cache is destroyed. 
+     */
+    if(cache == NULL){
+        enc_clean_ctx(&ctx1);
+        enc_clean_ctx(&ctx2);
+        enc_clean_ctx(&ctx3);
+        enc_clean_ctx(&ctx4);
+#ifdef USE_ENC_X8
+        enc_clean_ctx(&ctx5);
+        enc_clean_ctx(&ctx6);
+        enc_clean_ctx(&ctx7);
+        enc_clean_ctx(&ctx8);
+#endif
+    }
     return ret;
 }
 
@@ -275,7 +308,7 @@ int PRG_x4(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint32_t* e, const u
     int ret = -1;
     uint32_t i;
     enc_ctx* ctx[4];
-    enc_ctx ctx_data[4];
+    enc_ctx ctx_data[4] = { 0 };
     uint8_t linortho_seed[4][MQOM2_PARAM_SEED_SIZE];
     if(nb_contexts == 1) {
         ctx[0] = &ctx_data[0];
@@ -343,6 +376,14 @@ int PRG_x4(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint32_t* e, const u
 
     ret = 0;
 err:
+    /* XXX: NOTE: we do NOT clean the contexts when using a cache as these must be preserved
+     * and will be cleaned when the cache is destroyed. 
+     */
+    for(i = 0; i < nb_contexts; i++){
+        if(cache[i] == NULL){
+            enc_clean_ctx(&ctx_data[i]);
+        }
+    }
     return ret;
 }
 
@@ -350,7 +391,7 @@ int PRG_x8(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint32_t *e, const u
     int ret = -1;
     uint32_t i;
     enc_ctx* ctx[8];
-    enc_ctx ctx_data[8];
+    enc_ctx ctx_data[8] = { 0 };
     uint8_t linortho_seed[8][MQOM2_PARAM_SEED_SIZE];
     if(nb_contexts == 1) {
         ctx[0] = &ctx_data[0];
@@ -471,5 +512,13 @@ int PRG_x8(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint32_t *e, const u
 
     ret = 0;
 err:
+    /* XXX: NOTE: we do NOT clean the contexts when using a cache as these must be preserved
+     * and will be cleaned when the cache is destroyed. 
+     */
+    for(i = 0; i < nb_contexts; i++){
+        if(cache[i] == NULL){
+            enc_clean_ctx(&ctx_data[i]);
+        }
+    }
     return ret;
 }

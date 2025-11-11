@@ -8,6 +8,11 @@
 #include "xof.h"
 #include "fields.h"
 
+/* Deal with namespacing */
+#define BLC_Commit_memopt MQOM_NAMESPACE(BLC_Commit_memopt)
+#define BLC_Open_memopt MQOM_NAMESPACE(BLC_Open_memopt)
+#define BLC_Eval_memopt MQOM_NAMESPACE(BLC_Eval_memopt)
+
 typedef struct blc_key_memopt_t {
     uint8_t salt[MQOM2_PARAM_SALT_SIZE];
     uint8_t delta[MQOM2_PARAM_SEED_SIZE];

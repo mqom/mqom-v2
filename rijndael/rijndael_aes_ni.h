@@ -8,6 +8,23 @@
 
 #include "rijndael_common.h"
 
+/* Deal with namespacing */
+#define aes128_aes_ni_setkey_enc MQOM_NAMESPACE(aes128_aes_ni_setkey_enc)
+#define aes256_aes_ni_setkey_enc MQOM_NAMESPACE(aes256_aes_ni_setkey_enc)
+#define rijndael256_aes_ni_setkey_enc MQOM_NAMESPACE(rijndael256_aes_ni_setkey_enc)
+#define aes128_aes_ni_enc MQOM_NAMESPACE(aes128_aes_ni_enc)
+#define aes256_aes_ni_enc MQOM_NAMESPACE(aes256_aes_ni_enc)
+#define rijndael256_aes_ni_enc MQOM_NAMESPACE(rijndael256_aes_ni_enc)
+#define aes128_aes_ni_enc_x2 MQOM_NAMESPACE(aes128_aes_ni_enc_x2)
+#define aes128_aes_ni_enc_x4 MQOM_NAMESPACE(aes128_aes_ni_enc_x4)
+#define aes128_aes_ni_enc_x8 MQOM_NAMESPACE(aes128_aes_ni_enc_x8)
+#define aes256_aes_ni_enc_x2 MQOM_NAMESPACE(aes256_aes_ni_enc_x2)
+#define aes256_aes_ni_enc_x4 MQOM_NAMESPACE(aes256_aes_ni_enc_x4)
+#define aes256_aes_ni_enc_x8 MQOM_NAMESPACE(aes256_aes_ni_enc_x8)
+#define rijndael256_aes_ni_enc_x2 MQOM_NAMESPACE(rijndael256_aes_ni_enc_x2)
+#define rijndael256_aes_ni_enc_x4 MQOM_NAMESPACE(rijndael256_aes_ni_enc_x4)
+#define rijndael256_aes_ni_enc_x8 MQOM_NAMESPACE(rijndael256_aes_ni_enc_x8)
+
 /* Header for AES-NI intrinsics */
 #include <wmmintrin.h>
 #include <emmintrin.h>

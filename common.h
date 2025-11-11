@@ -6,13 +6,31 @@
 #include <string.h>
 #include <stdint.h>
 
+/* Namespacing with the appropriate prefix */
+#ifndef MQOM_NAMESPACE
+#ifdef APPLY_NAMESPACE
+#ifndef concat2
+#define _concat2(a, b) a ## b
+#define concat2(a, b) _concat2(a, b)
+#endif
+#define MQOM_NAMESPACE(s) concat2(APPLY_NAMESPACE, s)
+#else
+#define MQOM_NAMESPACE(s) s
+#endif
+#endif
+
+#if defined(MQOM2_FOR_LIBOQS)
+/* Useful includes for libOQS integration */
+#include <oqs/common.h>
+#endif
+
 #if !defined(NO_EMBEDDED_SRAM_SECTION)
 /* Some macro useful for global variables space accounting in SRAM */
 #define EMBEDDED_SRAM __attribute__((section(".embedded_sram_tables")))
 #endif
 
 /* Malloc redirection to allow for max allocation accounting */
-#if defined(BENCHMARK) || defined(BENCHMARK_CYCLES) || defined(BENCHMARK_TIME)
+#if (defined(BENCHMARK) || defined(BENCHMARK_CYCLES) || defined(BENCHMARK_TIME)) && !defined(MQOM2_FOR_LIBOQS)
 #include <stdio.h>
 #include <stdlib.h>
 #define MAX_TRACKED_POINTERS 100
@@ -21,6 +39,10 @@ typedef struct {
 	size_t size;
 	uint8_t alive;
 } living_pointer;
+
+/* Deal with namespacing */
+#define living_pointers MQOM_NAMESPACE(living_pointers)
+#define alloc_peak_usage MQOM_NAMESPACE(alloc_peak_usage)
 
 __attribute__((weak)) living_pointer living_pointers[MAX_TRACKED_POINTERS] = { 0 };
 
@@ -90,12 +112,17 @@ out:
 	return ptr;
 }
 
-static inline void mqom_free(void *ptr){
+static inline void mqom_free(void *ptr, size_t len){
+	(void)len;
 	if(ptr != NULL){
 		/* Find the slot */
 		unsigned int i;
 		for(i = 0; i < MAX_TRACKED_POINTERS; i++){
 			if(living_pointers[i].ptr == ptr){
+				if(living_pointers[i].size != len){
+					printf("[-] WARNING: internal error in malloc tracking ...\r\n");
+					goto out;
+				}
 				break;
 			}
 		}
@@ -122,12 +149,32 @@ out:
 	printf("[+] Malloc stats %s: Peak Usage is %ld bytes\r\n", s, alloc_peak_usage); \
 } while(0);
 
+#elif defined(MQOM2_FOR_LIBOQS)
+/* libOQS specific helpers */
+#define mqom_malloc OQS_MEM_malloc
+#define mqom_calloc OQS_MEM_calloc
+#define mqom_free OQS_MEM_secure_free
+#define reset_alloc_usage()
+#define print_alloc_usage(s)
+
 #else
 #define mqom_malloc malloc
 #define mqom_calloc calloc
-#define mqom_free free
+#define mqom_free(ptr, sz) free(ptr)
 #define reset_alloc_usage()
 #define print_alloc_usage(s)
+#endif
+
+/* Cleaning function */
+#if defined(MQOM2_FOR_LIBOQS)
+#define mqom_cleanse OQS_MEM_cleanse
+#else
+static inline void mqom_cleanse(void *ptr, size_t len)
+{
+	if(ptr != NULL){
+		memset(ptr, 0, len);
+	}
+}
 #endif
 
 #undef ERR

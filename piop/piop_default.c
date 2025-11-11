@@ -73,7 +73,7 @@ int ComputePAlpha_default(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const fiel
     __BENCHMARK_START__(BS_PIOP_EXPAND_BATCHING_MAT);
 #if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
     uint32_t i;
-    xof_context xof_ctx;
+    xof_context xof_ctx = { 0 };
     field_ext_elt Gamma[MQOM2_PARAM_ETA][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)];
     uint8_t stream[MQOM2_PARAM_ETA*BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)];
     ret = xof_init(&xof_ctx); ERR(ret, err);
@@ -137,11 +137,14 @@ int ComputePAlpha_default(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const fiel
 err:
     destroy_piop_cache(t1_cache);
     if(_A_hat){
-        mqom_free(_A_hat);
+        mqom_free(_A_hat, (MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU) * MQOM2_PARAM_MQ_N * FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N) * sizeof(field_ext_elt));
     }
     if(_b_hat){
-        mqom_free(_b_hat);      
+        mqom_free(_b_hat, (MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU) * FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N) * sizeof(field_ext_elt));
     }
+#if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
+    xof_clean_ctx(&xof_ctx);
+#endif
     return ret;
 }
 
@@ -241,10 +244,13 @@ int RecomputePAlpha_default(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], const fi
     ret = 0;
 err:
     if(_A_hat){
-        mqom_free(_A_hat);
+        mqom_free(_A_hat, (MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU) * MQOM2_PARAM_MQ_N * FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N) * sizeof(field_ext_elt));
     }
     if(_b_hat){
-        mqom_free(_b_hat);      
+        mqom_free(_b_hat, (MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU) * FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N) * sizeof(field_ext_elt));
     }
+#if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
+    xof_clean_ctx(&xof_ctx);
+#endif
     return ret;
 }

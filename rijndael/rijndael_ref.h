@@ -3,6 +3,23 @@
 
 #include "rijndael_common.h"
 
+/* Deal with namespacing */
+#define aes128_ref_setkey_enc MQOM_NAMESPACE(aes128_ref_setkey_enc)
+#define aes256_ref_setkey_enc MQOM_NAMESPACE(aes256_ref_setkey_enc)
+#define rijndael256_ref_setkey_enc MQOM_NAMESPACE(rijndael256_ref_setkey_enc)
+#define aes128_ref_enc MQOM_NAMESPACE(aes128_ref_enc)
+#define aes256_ref_enc MQOM_NAMESPACE(aes256_ref_enc)
+#define rijndael256_ref_enc MQOM_NAMESPACE(rijndael256_ref_enc)
+#define aes128_ref_enc_x2 MQOM_NAMESPACE(aes128_ref_enc_x2)
+#define aes128_ref_enc_x4 MQOM_NAMESPACE(aes128_ref_enc_x4)
+#define aes128_ref_enc_x8 MQOM_NAMESPACE(aes128_ref_enc_x8)
+#define aes256_ref_enc_x2 MQOM_NAMESPACE(aes256_ref_enc_x2)
+#define aes256_ref_enc_x4 MQOM_NAMESPACE(aes256_ref_enc_x4)
+#define aes256_ref_enc_x8 MQOM_NAMESPACE(aes256_ref_enc_x8)
+#define rijndael256_ref_enc_x2 MQOM_NAMESPACE(rijndael256_ref_enc_x2)
+#define rijndael256_ref_enc_x4 MQOM_NAMESPACE(rijndael256_ref_enc_x4)
+#define rijndael256_ref_enc_x8 MQOM_NAMESPACE(rijndael256_ref_enc_x8)
+
 /* The general Rijndael core context structure */
 typedef struct  __attribute__((packed))
 {

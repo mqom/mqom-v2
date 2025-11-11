@@ -6,10 +6,108 @@
 /* Common helpers */
 #include "common.h"
 
+/* Counting cycles for symmetric crypto in MUPQ */
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+#include "hal.h"
+extern unsigned long long hash_cycles;
+#endif
+
 /* === 128 bits security === */
 #if MQOM2_PARAM_SECURITY == 128
 
-#if defined(MQOM2_FOR_MUPQ) && !defined(MQOM2_FOR_MUPQ_LOCAL_RIJNDAEL)
+#if defined(MQOM2_FOR_LIBOQS) && !defined(MQOM2_FOR_LIBOQS_LOCAL_RIJNDAEL)
+/****************************************/
+/********** libOQS API ******************/
+/****************************************/
+/* For 128 bits security for libOQS when local Rijndael is not defined, we use the AES-128 dedicated API */
+/* XXX: this is somehow suboptimal because of how rigid is the API wrt x2, x4 and x8 ... But we accept to lose
+ * a little performance here (and actually gain performance on non-AES-NI platforms) */
+#include <oqs/aes.h>
+
+#define ENC_CTX_INIT_MAGIC 0xfeedbabebadf000dULL
+
+typedef struct {
+	uint64_t magic;
+	void *sched_keys;
+} enc_ctx;
+
+static inline int enc_key_sched(enc_ctx *ctx, const uint8_t key[16])
+{
+	if((ctx != NULL) && (ctx->magic == ENC_CTX_INIT_MAGIC) && (ctx->sched_keys != NULL)){
+		/* Free the context if it has already been previously allocated */
+		OQS_AES128_free_schedule(ctx->sched_keys);
+		ctx->magic = 0;
+	}
+	OQS_AES128_ECB_load_schedule(key, &ctx->sched_keys);
+	ctx->magic = ENC_CTX_INIT_MAGIC;
+	return 0;
+}
+
+static inline int enc_encrypt(const enc_ctx *ctx, const uint8_t pt[16], uint8_t ct[16])
+{
+	if((ctx == NULL) || (ctx->magic != ENC_CTX_INIT_MAGIC)){
+		return -1;
+	}
+	OQS_AES128_ECB_enc_sch(pt, 16, ctx->sched_keys, ct);
+	return 0;
+}
+
+static inline int enc_encrypt_x2(const enc_ctx *ctx1, const enc_ctx *ctx2, const uint8_t pt1[16], const uint8_t pt2[16], uint8_t ct1[16], uint8_t ct2[16])
+{
+	int ret = 0;
+
+	ret  = enc_encrypt(ctx1, pt1, ct1);
+	ret |= enc_encrypt(ctx2, pt2, ct2);
+
+	return ret;
+}
+
+static inline int enc_encrypt_x4(const enc_ctx *ctx1, const enc_ctx *ctx2, const enc_ctx *ctx3, const enc_ctx *ctx4,
+				const uint8_t pt1[16], const uint8_t pt2[16], const uint8_t pt3[16], const uint8_t pt4[16],
+				uint8_t ct1[16], uint8_t ct2[16], uint8_t ct3[16], uint8_t ct4[16])
+{
+	int ret = 0;
+
+	ret  = enc_encrypt_x2(ctx1, ctx2, pt1, pt2, ct1, ct2);
+	ret |= enc_encrypt_x2(ctx3, ctx4, pt3, pt4, ct3, ct4);
+
+	return ret;
+}
+
+static inline int enc_encrypt_x8(const enc_ctx *ctx1, const enc_ctx *ctx2, const enc_ctx *ctx3, const enc_ctx *ctx4,
+				const enc_ctx *ctx5, const enc_ctx *ctx6, const enc_ctx *ctx7, const enc_ctx *ctx8,
+				const uint8_t pt1[16], const uint8_t pt2[16], const uint8_t pt3[16], const uint8_t pt4[16],
+				const uint8_t pt5[16], const uint8_t pt6[16], const uint8_t pt7[16], const uint8_t pt8[16],
+				uint8_t ct1[16], uint8_t ct2[16], uint8_t ct3[16], uint8_t ct4[16],
+				uint8_t ct5[16], uint8_t ct6[16], uint8_t ct7[16], uint8_t ct8[16])
+{
+	int ret = 0;
+
+	ret  = enc_encrypt_x4(ctx1, ctx2, ctx3, ctx4, pt1, pt2, pt3, pt4, ct1, ct2, ct3, ct4);
+	ret |= enc_encrypt_x4(ctx5, ctx6, ctx7, ctx8, pt5, pt6, pt7, pt8, ct5, ct6, ct7, ct8);
+
+	return ret;
+}
+
+static inline void enc_clean_ctx(enc_ctx *ctx)
+{
+	if((ctx != NULL) && (ctx->magic == ENC_CTX_INIT_MAGIC)){
+		OQS_AES128_free_schedule(ctx->sched_keys);
+		ctx->magic = 0;
+	}
+	return;
+}
+
+static inline void enc_uninit_ctx(enc_ctx *ctx)
+{
+	if(ctx != NULL){
+		ctx->magic = 0;
+	}
+	return;
+}
+
+
+#elif defined(MQOM2_FOR_MUPQ) && !defined(MQOM2_FOR_MUPQ_LOCAL_RIJNDAEL)
 /*************************************/
 /********** MUPQ API *****************/
 /*************************************/
@@ -70,6 +168,9 @@ static inline void inv_shiftrows_3(uint32_t* rkey) {
 
 static inline void keys_packing(uint32_t* out, const unsigned char* in0,
                 const unsigned char* in1, unsigned int i) {
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
         uint32_t tmp;
         out[0] = LE_LOAD_32(in0);
         out[1] = LE_LOAD_32(in1);
@@ -117,6 +218,10 @@ static inline void keys_packing(uint32_t* out, const unsigned char* in0,
                 out[6] ^= 0xffffffff;
                 out[7] ^= 0xffffffff;
         }
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
 }
 
 /* XXX: NOTE: on a x86 host, we force MQOM2_FOR_MUPQ_AES_GENERIC_KEYSCHEDULE since
@@ -276,6 +381,7 @@ static inline int enc_encrypt_x8(const enc_ctx *ctx1, const enc_ctx *ctx2, const
 	return 0;
 #endif
 }
+
 #else
 /*************************************/
 /********** Local ********************/
@@ -284,11 +390,78 @@ static inline int enc_encrypt_x8(const enc_ctx *ctx1, const enc_ctx *ctx2, const
 #include "rijndael.h"
 /* For 128 bits security, we transparently use AES-128 */
 #define enc_ctx rijndael_ctx_aes128
-#define enc_key_sched aes128_setkey_enc
-#define enc_encrypt aes128_enc
-#define enc_encrypt_x2 aes128_enc_x2
-#define enc_encrypt_x4 aes128_enc_x4
-#define enc_encrypt_x8 aes128_enc_x8
+static inline int enc_key_sched(enc_ctx *ctx, const uint8_t key[16])
+{
+	int ret;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
+	ret = aes128_setkey_enc(ctx, key);
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
+}
+static inline int enc_encrypt(const enc_ctx *ctx, const uint8_t pt[16], uint8_t ct[16])
+{
+	int ret;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
+	ret = aes128_enc(ctx, pt, ct);
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
+}
+static inline int enc_encrypt_x2(const enc_ctx *ctx1, const enc_ctx *ctx2, const uint8_t pt1[16], const uint8_t pt2[16], uint8_t ct1[16], uint8_t ct2[16])
+{
+	int ret;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
+	ret = aes128_enc_x2(ctx1, ctx2, pt1, pt2, ct1, ct2);
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
+}
+static inline int enc_encrypt_x4(const enc_ctx *ctx1, const enc_ctx *ctx2, const enc_ctx *ctx3, const enc_ctx *ctx4,
+				const uint8_t pt1[16], const uint8_t pt2[16], const uint8_t pt3[16], const uint8_t pt4[16],
+				uint8_t ct1[16], uint8_t ct2[16], uint8_t ct3[16], uint8_t ct4[16])
+{
+	int ret;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
+	ret = aes128_enc_x4(ctx1, ctx2, ctx3, ctx4, pt1, pt2, pt3, pt4, ct1, ct2, ct3, ct4);
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
+}
+static inline int enc_encrypt_x8(const enc_ctx *ctx1, const enc_ctx *ctx2, const enc_ctx *ctx3, const enc_ctx *ctx4,
+				const enc_ctx *ctx5, const enc_ctx *ctx6, const enc_ctx *ctx7, const enc_ctx *ctx8,
+				const uint8_t pt1[16], const uint8_t pt2[16], const uint8_t pt3[16], const uint8_t pt4[16],
+				const uint8_t pt5[16], const uint8_t pt6[16], const uint8_t pt7[16], const uint8_t pt8[16],
+				uint8_t ct1[16], uint8_t ct2[16], uint8_t ct3[16], uint8_t ct4[16],
+				uint8_t ct5[16], uint8_t ct6[16], uint8_t ct7[16], uint8_t ct8[16])
+{
+	int ret;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
+	ret = aes128_enc_x8(ctx1, ctx2, ctx3, ctx4, ctx5, ctx6, ctx7, ctx8, pt1, pt2, pt3, pt4, pt5, pt6, pt7, pt8, ct1, ct2, ct3, ct4, ct5, ct6, ct7, ct8);
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
+}
 #endif
 
 
@@ -304,18 +477,32 @@ static inline int enc_encrypt_x8(const enc_ctx *ctx1, const enc_ctx *ctx2, const
  * */
 static inline int enc_key_sched(enc_ctx *ctx, const uint8_t key[24])
 {
+	int ret = -1;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
 	/* Key expansion key || O^64 */
 	uint8_t exp_key[32] = { 0 };
 	memcpy(exp_key, key, 24);
 
 	/* Execute the Rijndael-256-256 key schedule */
-	return rijndael256_setkey_enc(ctx, exp_key);
+	ret = rijndael256_setkey_enc(ctx, exp_key); ERR(ret, err);
+
+	ret = 0;
+err:
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
 }
 
 static inline int enc_encrypt(const enc_ctx *ctx, const uint8_t pt[24], uint8_t ct[24])
 {
 	int ret = -1;
-
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
 	/* Plaintext expansion pt || 0^64 */
 	uint8_t exp_pt[32] = { 0 }, exp_ct[32];
 	memcpy(exp_pt, pt, 24);
@@ -328,13 +515,19 @@ static inline int enc_encrypt(const enc_ctx *ctx, const uint8_t pt[24], uint8_t 
 
 	ret = 0;
 err:
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
 	return ret;
 }
 
 static inline int enc_encrypt_x2(const enc_ctx *ctx1, const enc_ctx *ctx2, const uint8_t pt1[24], const uint8_t pt2[24], uint8_t ct1[24], uint8_t ct2[24])
 {
 	int ret = -1;
-
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
 	/* Plaintext expansion pt || 0^64 */
 	uint8_t exp_pt[2][32] = { 0 }, exp_ct[2][32];
 	memcpy(exp_pt[0], pt1, 24);
@@ -348,6 +541,10 @@ static inline int enc_encrypt_x2(const enc_ctx *ctx1, const enc_ctx *ctx2, const
 
 	ret = 0;
 err:
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
 	return ret;
 }
 
@@ -356,7 +553,9 @@ static inline int enc_encrypt_x4(const enc_ctx *ctx1, const enc_ctx *ctx2, const
 				uint8_t ct1[24], uint8_t ct2[24], uint8_t ct3[24], uint8_t ct4[24])
 {
 	int ret = -1;
-
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
 	/* Plaintext expansion pt || 0^64 */
 	uint8_t exp_pt[4][32] = { 0 }, exp_ct[4][32];
 	memcpy(exp_pt[0], pt1, 24);
@@ -376,6 +575,10 @@ static inline int enc_encrypt_x4(const enc_ctx *ctx1, const enc_ctx *ctx2, const
 
 	ret = 0;
 err:
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
 	return ret;
 }
 
@@ -387,7 +590,9 @@ static inline int enc_encrypt_x8(const enc_ctx *ctx1, const enc_ctx *ctx2, const
 				uint8_t ct5[24], uint8_t ct6[24], uint8_t ct7[24], uint8_t ct8[24])
 {
 	int ret = -1;
-
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
 	/* Plaintext expansion pt || 0^64 */
 	uint8_t exp_pt[8][32] = { 0 }, exp_ct[8][32];
 	memcpy(exp_pt[0], pt1, 24);
@@ -417,6 +622,10 @@ static inline int enc_encrypt_x8(const enc_ctx *ctx1, const enc_ctx *ctx2, const
 
 	ret = 0;
 err:
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
 	return ret;
 }
 
@@ -426,17 +635,99 @@ err:
 #include "rijndael.h"
 
 #define enc_ctx rijndael_ctx_rijndael256
-
 /* For 256 bits security, we tyransparently use Rijndael-256-256 */
-#define enc_key_sched rijndael256_setkey_enc
-#define enc_encrypt rijndael256_enc
-#define enc_encrypt_x2 rijndael256_enc_x2
-#define enc_encrypt_x4 rijndael256_enc_x4
-#define enc_encrypt_x8 rijndael256_enc_x8
+static inline int enc_key_sched(enc_ctx *ctx, const uint8_t key[32])
+{
+	int ret;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
+	ret = rijndael256_setkey_enc(ctx, key);
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
+}
+static inline int enc_encrypt(const enc_ctx *ctx, const uint8_t pt[32], uint8_t ct[32])
+{
+	int ret;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
+	ret = rijndael256_enc(ctx, pt, ct);
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
+}
+static inline int enc_encrypt_x2(const enc_ctx *ctx1, const enc_ctx *ctx2, const uint8_t pt1[32], const uint8_t pt2[32], uint8_t ct1[32], uint8_t ct2[32])
+{
+	int ret;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
+	ret = rijndael256_enc_x2(ctx1, ctx2, pt1, pt2, ct1, ct2);
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
+}
+static inline int enc_encrypt_x4(const enc_ctx *ctx1, const enc_ctx *ctx2, const enc_ctx *ctx3, const enc_ctx *ctx4,
+				const uint8_t pt1[32], const uint8_t pt2[32], const uint8_t pt3[32], const uint8_t pt4[32],
+				uint8_t ct1[32], uint8_t ct2[32], uint8_t ct3[32], uint8_t ct4[32])
+{
+	int ret;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
+	ret = rijndael256_enc_x4(ctx1, ctx2, ctx3, ctx4, pt1, pt2, pt3, pt4, ct1, ct2, ct3, ct4);
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
+}
+static inline int enc_encrypt_x8(const enc_ctx *ctx1, const enc_ctx *ctx2, const enc_ctx *ctx3, const enc_ctx *ctx4,
+				const enc_ctx *ctx5, const enc_ctx *ctx6, const enc_ctx *ctx7, const enc_ctx *ctx8,
+				const uint8_t pt1[32], const uint8_t pt2[32], const uint8_t pt3[32], const uint8_t pt4[32],
+				const uint8_t pt5[32], const uint8_t pt6[32], const uint8_t pt7[32], const uint8_t pt8[32],
+				uint8_t ct1[32], uint8_t ct2[32], uint8_t ct3[32], uint8_t ct4[32],
+				uint8_t ct5[32], uint8_t ct6[32], uint8_t ct7[32], uint8_t ct8[32])
+{
+	int ret;
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t0 = hal_get_time();
+#endif
+	ret = rijndael256_enc_x8(ctx1, ctx2, ctx3, ctx4, ctx5, ctx6, ctx7, ctx8, pt1, pt2, pt3, pt4, pt5, pt6, pt7, pt8, ct1, ct2, ct3, ct4, ct5, ct6, ct7, ct8);
+#if defined(MQOM2_FOR_MUPQ) && defined(PROFILE_HASHING)
+	uint64_t t1 = hal_get_time();
+	hash_cycles += (t1-t0);
+#endif
+	return ret;
+}
 
 #else
 
 #error "Sorry, unsupported security parameters: must be one of 128, 192, 256"
+#endif
+
+/* Common encryption context cleaning function, except for libOQS cat 1 since we have a dedicated
+ * freeing function for this case. */
+#if !defined(MQOM2_FOR_LIBOQS) || (defined(MQOM2_FOR_LIBOQS) && (MQOM2_PARAM_SECURITY != 128))
+static inline void enc_clean_ctx(enc_ctx *ctx)
+{
+	if(ctx != NULL){
+		mqom_cleanse(ctx, sizeof(enc_ctx));
+	}
+}
+static inline void enc_uninit_ctx(enc_ctx *ctx)
+{
+	(void)ctx;
+}
+
 #endif
 
 

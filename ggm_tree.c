@@ -125,7 +125,7 @@ int GGMTree_Expand(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t rsee
 	int ret = -1;
 	/* j is the level in the tree, k is the index in the nodes array */
 	uint32_t j, k;
-	enc_ctx ctx;
+	enc_ctx ctx = { 0 };
 	uint8_t tweaked_salt[MQOM2_PARAM_SALT_SIZE];
 
 	/* Some sanity check */
@@ -270,6 +270,7 @@ int GGMTree_Expand(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t rsee
 
 	ret = 0;
 err:
+	enc_clean_ctx(&ctx);
 	return ret;
 }
 
@@ -302,7 +303,7 @@ int GGMTree_PartiallyExpand(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uin
 	int ret = -1;
 	/* j is the level in the tree, k is the index in the nodes array */
 	uint32_t i, j, k;
-	enc_ctx ctx;
+	enc_ctx ctx = { 0 };
 	uint8_t tweaked_salt[MQOM2_PARAM_SALT_SIZE];
 	/* Locally allocate the full tree */
 	uint8_t node[MQOM2_PARAM_FULL_TREE_SIZE + 1][MQOM2_PARAM_SEED_SIZE];
@@ -520,6 +521,7 @@ int GGMTree_PartiallyExpand(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uin
 
 	ret = 0;
 err:
+	enc_clean_ctx(&ctx);
 	return ret;
 }
 
@@ -527,7 +529,7 @@ int GGMTree_ExpandPath(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t 
 {
 	int ret = -1;
 	uint32_t j;
-	enc_ctx ctx;
+	enc_ctx ctx = { 0 };
 	uint8_t tweaked_salt[MQOM2_PARAM_SALT_SIZE];
 
 	/* Sanity check */
@@ -561,6 +563,7 @@ int GGMTree_ExpandPath(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t 
 
 	ret = 0;
 err:
+	enc_clean_ctx(&ctx);
 	return ret;
 }
 
@@ -586,7 +589,7 @@ err:
 }
 
 int GGMTree_GetNextLeaf(ggmtree_ctx_t* ctx, uint8_t lseed[MQOM2_PARAM_SEED_SIZE]) {
-	enc_ctx ctx_enc;
+	enc_ctx ctx_enc = { 0 };
 	uint32_t j;
 	int ret = -1;
 
@@ -615,6 +618,7 @@ int GGMTree_GetNextLeaf(ggmtree_ctx_t* ctx, uint8_t lseed[MQOM2_PARAM_SEED_SIZE]
 
 	ret = 0;
 err:
+	enc_clean_ctx(&ctx_enc);
 	return ret;
 }
 
@@ -642,7 +646,7 @@ err:
 }
 
 int GGMTree_GetNextLeaf_x4(ggmtree_ctx_x4_t* ctx, uint8_t lseed[4][MQOM2_PARAM_SEED_SIZE]) {
-	enc_ctx ctx_enc[4];
+	enc_ctx ctx_enc[4] = { 0 };
 	uint32_t j;
 	int ret = -1;
 
@@ -685,6 +689,9 @@ int GGMTree_GetNextLeaf_x4(ggmtree_ctx_x4_t* ctx, uint8_t lseed[4][MQOM2_PARAM_S
 
 	ret = 0;
 err:
+	for(j = 0; j < 4; j++){
+		enc_clean_ctx(&ctx_enc[j]);
+	}
 	return ret;
 }
 
@@ -710,7 +717,7 @@ err:
 }
 
 int GGMTree_GetNextLeafPartial(ggmtree_ctx_partial_t* ctx, uint8_t lseed[MQOM2_PARAM_SEED_SIZE]) {
-	enc_ctx ctx_enc;
+	enc_ctx ctx_enc = { 0 };
 	uint32_t j;
 	int ret = -1;
 
@@ -751,6 +758,7 @@ int GGMTree_GetNextLeafPartial(ggmtree_ctx_partial_t* ctx, uint8_t lseed[MQOM2_P
 
 	ret = 0;
 err:
+	enc_clean_ctx(&ctx_enc);
 	return ret;
 }
 
@@ -784,7 +792,7 @@ err:
 }
 
 int GGMTree_GetNextLeafPartial_x4(ggmtree_ctx_partial_x4_t* ctx, uint8_t lseed[4][MQOM2_PARAM_SEED_SIZE]) {
-	enc_ctx ctx_enc[4];
+	enc_ctx ctx_enc[4] = { 0 };
 	uint32_t i, j;
 	int ret = -1;
 
@@ -860,5 +868,9 @@ int GGMTree_GetNextLeafPartial_x4(ggmtree_ctx_partial_x4_t* ctx, uint8_t lseed[4
 
 	ret = 0;
 err:
+	for(j = 0; j < 4; j++){
+		enc_clean_ctx(&ctx_enc[j]);
+	}
+
 	return ret;
 }

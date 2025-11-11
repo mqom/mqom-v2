@@ -18,6 +18,29 @@ struct timeval {
 extern void gettimeofday(struct timeval*, void*);
 #endif
 
+/* Namespacing with the appropriate prefix */
+#ifndef MQOM_NAMESPACE
+#ifdef APPLY_NAMESPACE
+#ifndef concat2
+#define _concat2(a, b) a ## b
+#define concat2(a, b) _concat2(a, b)
+#endif
+#define MQOM_NAMESPACE(s) concat2(APPLY_NAMESPACE, s)
+#else
+#define MQOM_NAMESPACE(s) s
+#endif
+#endif
+
+/* Deal with namespacing */
+#define btimer_init MQOM_NAMESPACE(btimer_init)
+#define btimer_start MQOM_NAMESPACE(btimer_start)
+#define btimer_count MQOM_NAMESPACE(btimer_count)
+#define btimer_end MQOM_NAMESPACE(btimer_end)
+#define btimer_diff MQOM_NAMESPACE(btimer_diff)
+#define btimer_diff_cycles MQOM_NAMESPACE(btimer_diff_cycles)
+#define btimer_get MQOM_NAMESPACE(btimer_get)
+#define btimer_get_cycles MQOM_NAMESPACE(btimer_get_cycles)
+
 typedef struct btimer_t {
     unsigned int counter;
     // gettimeofday

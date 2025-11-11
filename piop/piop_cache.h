@@ -13,6 +13,8 @@
 typedef struct {
         uint8_t active;
         field_ext_elt t1[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)];
+        /* Size in bytes of the cache (tracked for free) */
+	uint32_t size;
 } piop_cache;
 
 static inline void get_entry_piop_cache(const piop_cache *cache, uint32_t i, field_ext_elt t1[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)]){
@@ -29,7 +31,7 @@ static inline void set_entry_piop_cache(piop_cache *cache, uint32_t i, const fie
 static inline void destroy_piop_cache(piop_cache *cache)
 {   
         if(cache != NULL){
-		mqom_free(cache);
+		mqom_free(cache, cache->size);
         }
 }
 
@@ -47,6 +49,7 @@ static inline piop_cache *init_piop_cache(uint32_t num_elt)
 	if(cache == NULL){
 		goto err;
 	}
+	cache->size = num_elt * sizeof(piop_cache);
 err:
 #endif
         /* NOTE: when USE_PIOP_CACHE is not defined,

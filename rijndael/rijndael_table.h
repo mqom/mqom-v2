@@ -3,6 +3,23 @@
 
 #include "rijndael_common.h"
 
+/* Deal with namespacing */
+#define aes128_table_setkey_enc MQOM_NAMESPACE(aes128_table_setkey_enc)
+#define aes256_table_setkey_enc MQOM_NAMESPACE(aes256_table_setkey_enc)
+#define rijndael256_table_setkey_enc MQOM_NAMESPACE(rijndael256_table_setkey_enc)
+#define aes128_table_enc MQOM_NAMESPACE(aes128_table_enc)
+#define aes256_table_enc MQOM_NAMESPACE(aes256_table_enc)
+#define rijndael256_table_enc MQOM_NAMESPACE(rijndael256_table_enc)
+#define aes128_table_enc_x2 MQOM_NAMESPACE(aes128_table_enc_x2)
+#define aes128_table_enc_x4 MQOM_NAMESPACE(aes128_table_enc_x4)
+#define aes128_table_enc_x8 MQOM_NAMESPACE(aes128_table_enc_x8)
+#define aes256_table_enc_x2 MQOM_NAMESPACE(aes256_table_enc_x2)
+#define aes256_table_enc_x4 MQOM_NAMESPACE(aes256_table_enc_x4)
+#define aes256_table_enc_x8 MQOM_NAMESPACE(aes256_table_enc_x8)
+#define rijndael256_table_enc_x2 MQOM_NAMESPACE(rijndael256_table_enc_x2)
+#define rijndael256_table_enc_x4 MQOM_NAMESPACE(rijndael256_table_enc_x4)
+#define rijndael256_table_enc_x8 MQOM_NAMESPACE(rijndael256_table_enc_x8)
+
 #if !defined(EMBEDDED_SRAM) && !defined(NO_EMBEDDED_SRAM_SECTION)
 /* Some macro useful for global variables space accounting in SRAM */
 #define EMBEDDED_SRAM __attribute__((section(".embedded_sram_tables")))

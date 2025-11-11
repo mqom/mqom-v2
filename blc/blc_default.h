@@ -8,6 +8,11 @@
 #include "xof.h"
 #include "fields.h"
 
+/* Deal with namespacing */
+#define BLC_Commit_default MQOM_NAMESPACE(BLC_Commit_default)
+#define BLC_Open_default MQOM_NAMESPACE(BLC_Open_default)
+#define BLC_Eval_default MQOM_NAMESPACE(BLC_Eval_default)
+
 #ifndef BLC_MEMORY_EFFICIENT
 #define BLC_KEEP_ALL_TREES_IN_MEMORY
 #endif

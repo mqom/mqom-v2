@@ -8,6 +8,20 @@
 /* Common helpers */
 #include "common.h"
 
+/* Deal with namespacing */
+#define GGMTree_Expand MQOM_NAMESPACE(GGMTree_Expand)
+#define GGMTree_Open MQOM_NAMESPACE(GGMTree_Open)
+#define GGMTree_PartiallyExpand MQOM_NAMESPACE(GGMTree_PartiallyExpand)
+#define GGMTree_ExpandPath MQOM_NAMESPACE(GGMTree_ExpandPath)
+#define GGMTree_InitIncrementalExpansion MQOM_NAMESPACE(GGMTree_InitIncrementalExpansion)
+#define GGMTree_InitIncrementalExpansion_x4 MQOM_NAMESPACE(GGMTree_InitIncrementalExpansion_x4)
+#define GGMTree_GetNextLeaf MQOM_NAMESPACE(GGMTree_GetNextLeaf)
+#define GGMTree_GetNextLeaf_x4 MQOM_NAMESPACE(GGMTree_GetNextLeaf_x4)
+#define GGMTree_InitIncrementalPartialExpansion MQOM_NAMESPACE(GGMTree_InitIncrementalPartialExpansion)
+#define GGMTree_GetNextLeafPartial MQOM_NAMESPACE(GGMTree_GetNextLeafPartial)
+#define GGMTree_InitIncrementalPartialExpansion_x4 MQOM_NAMESPACE(GGMTree_InitIncrementalPartialExpansion_x4)
+#define GGMTree_GetNextLeafPartial_x4 MQOM_NAMESPACE(GGMTree_GetNextLeafPartial_x4)
+
 int GGMTree_Expand(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t rseed[MQOM2_PARAM_SEED_SIZE], const uint8_t delta[MQOM2_PARAM_SEED_SIZE], uint32_t e, uint8_t node[MQOM2_PARAM_FULL_TREE_SIZE + 1][MQOM2_PARAM_SEED_SIZE], uint8_t lseed[MQOM2_PARAM_NB_EVALS][MQOM2_PARAM_SEED_SIZE]);
 
 int GGMTree_Open(const uint8_t node[MQOM2_PARAM_FULL_TREE_SIZE + 1][MQOM2_PARAM_SEED_SIZE], uint32_t i_star, uint8_t path[MQOM2_PARAM_NB_EVALS_LOG][MQOM2_PARAM_SEED_SIZE]);

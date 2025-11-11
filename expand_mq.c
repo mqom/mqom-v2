@@ -50,6 +50,7 @@ int ExpandEquations_memopt_update(ExpandEquations_ctx *ctx, field_ext_elt *row)
 	uint32_t start_nbytes, nbytes;
 	uint8_t salt[MQOM2_PARAM_SALT_SIZE];
 	prg_key_sched_cache *prg_cache = NULL;
+	xof_context xof_ctx = { 0 };
 
 	/* Check init */
 	if((ctx == NULL) || (ctx->magic != EXPAND_EQUATIONS_CTX_MAGIC)){
@@ -75,7 +76,6 @@ int ExpandEquations_memopt_update(ExpandEquations_ctx *ctx, field_ext_elt *row)
  	 * In this case, we compute the local seed_eq
  	 */
 	if(ctx->j == 0){
-		xof_context xof_ctx;
 		uint8_t i_16[2];
 		i_16[0] = (ctx->i & 0xff);
 		i_16[1] = ((ctx->i >> 8) & 0xff);
@@ -97,6 +97,7 @@ int ExpandEquations_memopt_update(ExpandEquations_ctx *ctx, field_ext_elt *row)
 
 	ret = 0;
 err:
+	xof_clean_ctx(&xof_ctx);
 	destroy_prg_cache(prg_cache);
 	return ret;
 }
@@ -115,7 +116,7 @@ int ExpandEquations(const uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE], field_ext
 	nb_eq = nf_eq * FIELD_EXT_LOG2_CARD  / 8;
 
 	/* Allocate stream */
-	stream = (uint8_t*)malloc(nb_eq * sizeof(uint8_t));
+	stream = (uint8_t*)mqom_malloc(nb_eq * sizeof(uint8_t));
 	if(stream == NULL){
 		ret = -1;
 		goto err;
@@ -139,7 +140,7 @@ int ExpandEquations(const uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE], field_ext
 	}
 	/* Treat as many 4 batches as we can, and then deal with the leftover using simple XOFs */
 	for(i = 3; i < MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU; i+=4){
-		xof_context_x4 xof_ctx;
+		xof_context_x4 xof_ctx_x4 = { 0 };
 		uint32_t k, z;
 		uint8_t i_16[4][2];
 		uint8_t seed_eq[4][MQOM2_PARAM_SEED_SIZE];
@@ -151,11 +152,11 @@ int ExpandEquations(const uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE], field_ext
 			i_16[z][0] = ((i-z) & 0xff);
 			i_16[z][1] = (((i-z) >> 8) & 0xff);
 		}
-		ret = xof_init_x4(&xof_ctx); ERR(ret, err);
-		ret = xof_update_x4(&xof_ctx, constant_1, 1); ERR(ret, err);
-		ret = xof_update_x4(&xof_ctx, mseed_eq_ptr, 2 * MQOM2_PARAM_SEED_SIZE); ERR(ret, err);
-		ret = xof_update_x4(&xof_ctx, i_16_ptr, 2); ERR(ret, err);
-		ret = xof_squeeze_x4(&xof_ctx, seed_eq_ptr, MQOM2_PARAM_SEED_SIZE); ERR(ret, err);
+		ret = xof_init_x4(&xof_ctx_x4); ERR(ret, err);
+		ret = xof_update_x4(&xof_ctx_x4, constant_1, 1); ERR(ret, err);
+		ret = xof_update_x4(&xof_ctx_x4, mseed_eq_ptr, 2 * MQOM2_PARAM_SEED_SIZE); ERR(ret, err);
+		ret = xof_update_x4(&xof_ctx_x4, i_16_ptr, 2); ERR(ret, err);
+		ret = xof_squeeze_x4(&xof_ctx_x4, seed_eq_ptr, MQOM2_PARAM_SEED_SIZE); ERR(ret, err);
 		for(z = 0; z < 4; z++){
 			ret = PRG(prg_salt, 0, seed_eq[z], nb_eq, stream, prg_cache); ERR(ret, err);
 			k = 0;
@@ -169,13 +170,15 @@ int ExpandEquations(const uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE], field_ext
 			field_ext_parse(&stream[k], MQOM2_PARAM_MQ_N, b_hat[i-z]);
 		}
 		if((i + 4) >= MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU){
+			xof_clean_ctx_x4(&xof_ctx_x4);
 			goto left_over;
 		}
+		xof_clean_ctx_x4(&xof_ctx_x4);
 	}
 left_over:
 #endif
 	for(; i < MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU; i++){
-		xof_context xof_ctx;
+		xof_context xof_ctx = { 0 };
 		uint32_t k;
 		uint8_t i_16[2];
 		uint8_t seed_eq[MQOM2_PARAM_SEED_SIZE];
@@ -196,12 +199,13 @@ left_over:
 		}
 		/* Fill bi */
 		field_ext_parse(&stream[k], MQOM2_PARAM_MQ_N, b_hat[i]);
+		xof_clean_ctx(&xof_ctx);
 	}
 
 	ret = 0;
 err:
 	if(stream != NULL){
-		free(stream);
+		mqom_free(stream, nb_eq * sizeof(uint8_t));
 	}
 	destroy_prg_cache(prg_cache);
 	return ret;

@@ -74,11 +74,16 @@ int BLC_Commit_memopt(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t 
 {
     int ret = -1;
     uint32_t e, i;
-
 #if defined(BLC_INTERNAL_X4)
+    enc_ctx ctx_seed_commit1_x4[4] = { 0 }, ctx_seed_commit2_x4[4] = { 0 };
     prg_key_sched_cache* prg_cache_x4[4] = {NULL, NULL, NULL, NULL};
+    xof_context_x4 xof_ctx_x4 = { 0 };
+    xof_context xof_ctx = { 0 };
+#else
+    enc_ctx ctx_seed_commit1 = { 0 }, ctx_seed_commit2 = { 0 };
 #endif
     prg_key_sched_cache* prg_cache = NULL;
+    xof_context xof_ctx_hash_ls_com = { 0 };
 
     /* The serialization of x */
     uint8_t _x[BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)];
@@ -92,12 +97,10 @@ int BLC_Commit_memopt(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t 
     memcpy(key->delta, _x, MQOM2_PARAM_SEED_SIZE);
     memcpy(key->salt, salt, MQOM2_PARAM_SALT_SIZE);
 
-    xof_context xof_ctx_hash_ls_com;
     ret = xof_init(&xof_ctx_hash_ls_com); ERR(ret, err);
     ret = xof_update(&xof_ctx_hash_ls_com, (const uint8_t*) "\x07", 1); ERR(ret, err);
 
 #if defined(BLC_INTERNAL_X4)
-    enc_ctx ctx_seed_commit1_x4[4], ctx_seed_commit2_x4[4];
     uint8_t lseed_x4[4][MQOM2_PARAM_SEED_SIZE];
     uint8_t ls_com_x4[4][BLC_NB_SEED_COMMITMENTS_PER_HASH_UPDATE][MQOM2_PARAM_DIGEST_SIZE];
     uint8_t hash_ls_com_x4[4][MQOM2_PARAM_DIGEST_SIZE];
@@ -117,12 +120,9 @@ int BLC_Commit_memopt(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t 
     #define ls_com (ls_com_x4[0])
     #define hash_ls_com (hash_ls_com_x4[0])
     #define exp (&exp_x4[0])
-    xof_context_x4 xof_ctx_x4;
-    xof_context xof_ctx;
     ggmtree_ctx_x4_t ggm_tree_x4;
     ggmtree_ctx_t ggm_tree;
 #else
-    enc_ctx ctx_seed_commit1, ctx_seed_commit2;
     uint8_t lseed[MQOM2_PARAM_SEED_SIZE];
     uint8_t ls_com[BLC_NB_SEED_COMMITMENTS_PER_HASH_UPDATE][MQOM2_PARAM_DIGEST_SIZE];
     uint8_t hash_ls_com[MQOM2_PARAM_DIGEST_SIZE];
@@ -377,12 +377,24 @@ int BLC_Commit_memopt(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t 
     ret = 0;
 err:
 #if defined(BLC_INTERNAL_X4)
+    for(i = 0; i < 4; i++){
+        enc_clean_ctx(&ctx_seed_commit1_x4[i]);
+        enc_clean_ctx(&ctx_seed_commit2_x4[i]);
+    }
     destroy_prg_cache(prg_cache_x4[0]);
     destroy_prg_cache(prg_cache_x4[1]);
     destroy_prg_cache(prg_cache_x4[2]);
     destroy_prg_cache(prg_cache_x4[3]);
+#else
+    enc_clean_ctx(&ctx_seed_commit1);
+    enc_clean_ctx(&ctx_seed_commit2);
 #endif
     destroy_prg_cache(prg_cache);
+    xof_clean_ctx(&xof_ctx_hash_ls_com);
+#if defined(BLC_INTERNAL_X4)
+    xof_clean_ctx_x4(&xof_ctx_x4);
+    xof_clean_ctx(&xof_ctx);
+#endif
     return ret;
 }
 
@@ -390,7 +402,7 @@ int BLC_Open_memopt(const blc_key_memopt_t* key, const uint16_t i_star[MQOM2_PAR
 {
     int ret = -1;
     int e;
-    enc_ctx ctx_seed_commit1, ctx_seed_commit2;
+    enc_ctx ctx_seed_commit1 = { 0 }, ctx_seed_commit2 = { 0 };
     uint8_t lseed[MQOM2_PARAM_SEED_SIZE];
     uint8_t tweaked_salt[MQOM2_PARAM_SALT_SIZE];
 
@@ -416,6 +428,8 @@ int BLC_Open_memopt(const blc_key_memopt_t* key, const uint16_t i_star[MQOM2_PAR
 
     ret = 0;
 err:
+    enc_clean_ctx(&ctx_seed_commit1);
+    enc_clean_ctx(&ctx_seed_commit2);
     return ret;
 }
 
@@ -425,7 +439,10 @@ int BLC_Eval_memopt(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com
     uint32_t e, i;
 
 #if defined(BLC_INTERNAL_X4)
+    enc_ctx ctx_seed_commit1_x4[4] = { 0 }, ctx_seed_commit2_x4[4] = { 0 };
     prg_key_sched_cache* prg_cache_x4[4] = {NULL, NULL, NULL, NULL};
+#else
+    enc_ctx ctx_seed_commit1 = { 0 }, ctx_seed_commit2 = { 0 };
 #endif
     prg_key_sched_cache *prg_cache = NULL;
 
@@ -435,13 +452,15 @@ int BLC_Eval_memopt(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com
     const uint8_t* path = &opening[0];
     const uint8_t* out_ls_com = &opening[MQOM2_PARAM_TAU*MQOM2_PARAM_SEED_SIZE*MQOM2_PARAM_NB_EVALS_LOG];
     const uint8_t* partial_delta_x = &opening[MQOM2_PARAM_TAU*(MQOM2_PARAM_SEED_SIZE*MQOM2_PARAM_NB_EVALS_LOG+MQOM2_PARAM_DIGEST_SIZE)];
-    
-    xof_context xof_ctx_hash_ls_com;
+
+    xof_context_x4 xof_ctx_x4 = { 0 };
+    xof_context xof_ctx = { 0 };
+   
+    xof_context xof_ctx_hash_ls_com = { 0 };
     ret = xof_init(&xof_ctx_hash_ls_com); ERR(ret, err);
     ret = xof_update(&xof_ctx_hash_ls_com, (const uint8_t*) "\x07", 1); ERR(ret, err);
 
 #if defined(BLC_INTERNAL_X4)
-    enc_ctx ctx_seed_commit1_x4[4], ctx_seed_commit2_x4[4];
     uint8_t lseed_x4[4][MQOM2_PARAM_SEED_SIZE];
     uint8_t ls_com_x4[4][BLC_NB_SEED_COMMITMENTS_PER_HASH_UPDATE][MQOM2_PARAM_DIGEST_SIZE];
     uint8_t hash_ls_com_x4[4][MQOM2_PARAM_DIGEST_SIZE];
@@ -461,12 +480,9 @@ int BLC_Eval_memopt(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com
     uint8_t acc_x4[4*(BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)+BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_ETA))];
     uint8_t data_folding[MQOM2_PARAM_NB_EVALS_LOG][BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)+BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_ETA)];
     uint8_t acc[BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)+BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_ETA)];
-    xof_context_x4 xof_ctx_x4;
-    xof_context xof_ctx;
     ggmtree_ctx_partial_x4_t ggm_tree_x4;
     ggmtree_ctx_partial_t ggm_tree;
 #else
-    enc_ctx ctx_seed_commit1, ctx_seed_commit2;
     uint8_t lseed[MQOM2_PARAM_SEED_SIZE];
     uint8_t ls_com[BLC_NB_SEED_COMMITMENTS_PER_HASH_UPDATE][MQOM2_PARAM_DIGEST_SIZE];
     uint8_t hash_ls_com[MQOM2_PARAM_DIGEST_SIZE];
@@ -478,7 +494,6 @@ int BLC_Eval_memopt(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com
     field_ext_elt tmp_n[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)];
     field_ext_elt tmp_eta[FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
     field_base_elt acc_x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)];
-    xof_context xof_ctx;
     ggmtree_ctx_partial_t ggm_tree;
 #endif
     
@@ -707,6 +722,18 @@ int BLC_Eval_memopt(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com
     
     ret = 0;
 err:
+#if defined(BLC_INTERNAL_X4)
+    for(i = 0; i < 4; i++){
+        enc_clean_ctx(&ctx_seed_commit1_x4[i]);
+        enc_clean_ctx(&ctx_seed_commit2_x4[i]);
+    }
+#else
+    enc_clean_ctx(&ctx_seed_commit1);
+    enc_clean_ctx(&ctx_seed_commit2);
+#endif
+    xof_clean_ctx(&xof_ctx_hash_ls_com);
+    xof_clean_ctx_x4(&xof_ctx_x4);
+    xof_clean_ctx(&xof_ctx);
     destroy_prg_cache(prg_cache);
     return ret;
 }

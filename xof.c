@@ -50,6 +50,11 @@ err:
 	return ret;
 }
 
+void xof_clean_ctx(xof_context *ctx)
+{
+	_XOF_Release(&(ctx->ctx));
+}
+
 int xof_init_x4(xof_context_x4 *ctx)
 {
 	int ret = -1;
@@ -99,4 +104,10 @@ int xof_squeeze_x4(xof_context_x4 *ctx, uint8_t *out[4], uint32_t byte_len)
 err:
 	return ret;
 }
+
+void xof_clean_ctx_x4(xof_context_x4 *ctx)
+{
+	_XOF_Release_x4(&(ctx->ctx));
+}
+
 

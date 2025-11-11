@@ -13,9 +13,10 @@
 #include "blc.h"
 #include "piop.h"
 #include "benchmark.h"
+#include "sign.h"
 
 #include <stdio.h>
-#if !defined(MQOM2_FOR_MUPQ)
+#if !defined(MQOM2_FOR_MUPQ) && !defined(MQOM2_FOR_LIBOQS)
 #ifdef SUPERCOP
 extern void randombytes(unsigned char* x, unsigned long long xlen);
 #else
@@ -26,11 +27,11 @@ extern int randombytes(unsigned char* x, unsigned long long xlen);
 #endif
 
 #if defined(USE_XOF_X4)
-int SampleChallenge(const uint8_t hash[MQOM2_PARAM_DIGEST_SIZE], uint16_t i_star[MQOM2_PARAM_TAU], uint8_t nonce[4])
+static int SampleChallenge(const uint8_t hash[MQOM2_PARAM_DIGEST_SIZE], uint16_t i_star[MQOM2_PARAM_TAU], uint8_t nonce[4])
 {
     int ret = -1;
     int e;
-    xof_context_x4 xof_ctx;
+    xof_context_x4 xof_ctx = { 0 };
     uint32_t nonce_int[4] = { 0, 1, 2, 3 };
     uint8_t _nonce[4][4];
     uint16_t _i_star[4][MQOM2_PARAM_TAU];
@@ -77,14 +78,15 @@ out_loop:
 
     ret = 0;
 err:
+	xof_clean_ctx_x4(&xof_ctx);
         return ret;
 }
 #else
-int SampleChallenge(uint8_t hash[MQOM2_PARAM_DIGEST_SIZE], uint16_t i_star[MQOM2_PARAM_TAU], uint8_t nonce[4])
+static int SampleChallenge(uint8_t hash[MQOM2_PARAM_DIGEST_SIZE], uint16_t i_star[MQOM2_PARAM_TAU], uint8_t nonce[4])
 {
     int ret = -1;
     int e;
-	xof_context xof_ctx;
+    xof_context xof_ctx = { 0 };
     uint32_t nonce_int = 0;
 
     uint16_t val;
@@ -95,7 +97,7 @@ int SampleChallenge(uint8_t hash[MQOM2_PARAM_DIGEST_SIZE], uint16_t i_star[MQOM2
         nonce[2] = (nonce_int>>16) & 0xff;
         nonce[3] = (nonce_int>>24) & 0xff;
         ret = xof_init(&xof_ctx); ERR(ret, err);
-	    ret = xof_update(&xof_ctx, (const uint8_t*) "\x05", 1); ERR(ret, err);
+	ret = xof_update(&xof_ctx, (const uint8_t*) "\x05", 1); ERR(ret, err);
         ret = xof_update(&xof_ctx, hash, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
         ret = xof_update(&xof_ctx, nonce, 4); ERR(ret, err);
         ret = xof_squeeze(&xof_ctx, tmp, MQOM2_PARAM_TAU*2+2); ERR(ret, err);
@@ -108,6 +110,7 @@ int SampleChallenge(uint8_t hash[MQOM2_PARAM_DIGEST_SIZE], uint16_t i_star[MQOM2
 
     ret = 0;
 err:
+	xof_clean_ctx(&xof_ctx);
 	return ret;
 }
 #endif
@@ -118,7 +121,15 @@ int Sign(const uint8_t sk[MQOM2_SK_SIZE], const uint8_t *msg, unsigned long long
     uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE];
     uint8_t msg_hash[MQOM2_PARAM_DIGEST_SIZE], hash[MQOM2_PARAM_DIGEST_SIZE];
     field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)];
-    xof_context xof_ctx;
+    xof_context xof_ctx = { 0 };
+    /**/
+    blc_key_t key;
+    field_ext_elt x0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)];
+    field_ext_elt u0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
+    field_ext_elt u1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
+    /**/
+    field_ext_elt alpha0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
+    field_ext_elt alpha1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
 
     /* Parse the secret key */
     memcpy(mseed_eq, &sk[0], 2 * MQOM2_PARAM_SEED_SIZE);
@@ -141,19 +152,13 @@ int Sign(const uint8_t sk[MQOM2_SK_SIZE], const uint8_t *msg, unsigned long long
     uint8_t *nonce = &sig[MQOM2_SIG_SIZE-4];
 
     /* Commit Lines */
-    blc_key_t key;
-    field_ext_elt x0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)];
-    field_ext_elt u0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
-    field_ext_elt u1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
     __BENCHMARK_START__(BS_BLC_COMMIT);
-    BLC_Commit(mseed, salt, x, com1, &key, x0, u0, u1);
+    ret = BLC_Commit(mseed, salt, x, com1, &key, x0, u0, u1); ERR(ret, err);
     __BENCHMARK_STOP__(BS_BLC_COMMIT);
     
     /* Compute P_alpha */
-    field_ext_elt alpha0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
-    field_ext_elt alpha1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)];
     __BENCHMARK_START__(BS_PIOP_COMPUTE);
-    ComputePAlpha(com1, x0, u0, u1, x, mseed_eq, alpha0, alpha1);
+    ret = ComputePAlpha(com1, x0, u0, u1, x, mseed_eq, alpha0, alpha1); ERR(ret, err);
     __BENCHMARK_STOP__(BS_PIOP_COMPUTE);
 
     /* Hash P_alpha and compute Fiat-Shamir hash */
@@ -182,20 +187,31 @@ int Sign(const uint8_t sk[MQOM2_SK_SIZE], const uint8_t *msg, unsigned long long
     /* Sample Challenge */
     uint16_t i_star[MQOM2_PARAM_TAU];
     __BENCHMARK_START__(BS_SAMPLE_CHALLENGE);
-    ret = SampleChallenge(hash, i_star, nonce);
+    ret = SampleChallenge(hash, i_star, nonce); ERR(ret, err);
     __BENCHMARK_STOP__(BS_SAMPLE_CHALLENGE);
 
     /* Open Line Evaluation */
     __BENCHMARK_START__(BS_BLC_OPEN);
-    BLC_Open(&key, i_star, opening);
+    ret = BLC_Open(&key, i_star, opening); ERR(ret, err);
     __BENCHMARK_STOP__(BS_BLC_OPEN);
 
     ret = 0;
 err:
+    mqom_cleanse((void*)&key, sizeof(key));
+    mqom_cleanse((void*)mseed_eq, sizeof(mseed_eq));
+    mqom_cleanse((void*)x, sizeof(x));
+    mqom_cleanse((void*)msg_hash, sizeof(msg_hash));
+    mqom_cleanse((void*)x0, sizeof(x0));
+    mqom_cleanse((void*)u0, sizeof(u0));
+    mqom_cleanse((void*)u1, sizeof(u1));
+    mqom_cleanse((void*)alpha0, sizeof(alpha0));
+    mqom_cleanse((void*)alpha1, sizeof(alpha1));
+    xof_clean_ctx(&xof_ctx);
+
     return ret;	
 }
 
-#if !defined(MQOM2_FOR_MUPQ)
+#if !defined(MQOM2_FOR_MUPQ) && !defined(MQOM2_FOR_LIBOQS)
 int crypto_sign_signature(uint8_t *sig,
                           unsigned long long *siglen,
                           const uint8_t *m,
@@ -212,14 +228,14 @@ crypto_sign_signature(unsigned char  *sig, size_t *siglen,
 
     // Sample mseed
     uint8_t mseed[MQOM2_PARAM_SEED_SIZE];
-#ifdef SUPERCOP
+#if defined(SUPERCOP) || defined(MQOM2_FOR_LIBOQS)
     randombytes(mseed, MQOM2_PARAM_SEED_SIZE);
 #else
     ret = randombytes(mseed, MQOM2_PARAM_SEED_SIZE); ERR(ret, err);
 #endif
     // Sample salt
     uint8_t salt[MQOM2_PARAM_SALT_SIZE];
-#ifdef SUPERCOP
+#if defined(SUPERCOP) || defined(MQOM2_FOR_LIBOQS)
     randombytes(salt, MQOM2_PARAM_SALT_SIZE);
 #else
     ret = randombytes(salt, MQOM2_PARAM_SALT_SIZE); ERR(ret, err);
@@ -236,7 +252,7 @@ err:
     return ret;
 }
 
-#if !defined(MQOM2_FOR_MUPQ)
+#if !defined(MQOM2_FOR_MUPQ) && !defined(MQOM2_FOR_LIBOQS)
 int crypto_sign(
         unsigned char *sm, unsigned long long *smlen,
         const unsigned char *m, unsigned long long mlen,
@@ -268,7 +284,7 @@ int Verify(const uint8_t pk[MQOM2_PK_SIZE], const uint8_t *msg, unsigned long lo
     uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE];
     uint8_t msg_hash[MQOM2_PARAM_DIGEST_SIZE], hash[MQOM2_PARAM_DIGEST_SIZE], com2_[MQOM2_PARAM_DIGEST_SIZE];
     field_ext_elt y[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)];
-    xof_context xof_ctx;
+    xof_context xof_ctx = { 0 };
 
     /* Parse the public key */
     memcpy(mseed_eq, &pk[0], 2 * MQOM2_PARAM_SEED_SIZE);
@@ -346,10 +362,11 @@ int Verify(const uint8_t pk[MQOM2_PK_SIZE], const uint8_t *msg, unsigned long lo
 
     ret = 0;
 err:
+    xof_clean_ctx(&xof_ctx);
     return ret;	
 }
 
-#if !defined(MQOM2_FOR_MUPQ)
+#if !defined(MQOM2_FOR_MUPQ) && !defined(MQOM2_FOR_LIBOQS)
 int crypto_sign_verify(const uint8_t *sig,
                        unsigned long long siglen,
                        const uint8_t *m,
@@ -368,7 +385,7 @@ crypto_sign_verify(const unsigned char  *sig, size_t siglen,
     return Verify(pk, m, mlen, sig);
 }
 
-#if !defined(MQOM2_FOR_MUPQ)
+#if !defined(MQOM2_FOR_MUPQ) && !defined(MQOM2_FOR_LIBOQS)
 int crypto_sign_open(
         unsigned char *m, unsigned long long *mlen,
         const unsigned char *sm, unsigned long long smlen,

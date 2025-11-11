@@ -65,8 +65,8 @@ static inline void SeedCommit_x4(enc_ctx *ctx1, enc_ctx *ctx2, const uint8_t see
 int BLC_Commit_default(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], uint8_t com1[MQOM2_PARAM_DIGEST_SIZE], blc_key_default_t* key, field_ext_elt x0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], field_ext_elt u0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)], field_ext_elt u1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)])
 {
     int ret = -1;
-    enc_ctx ctx_seed_commit1, ctx_seed_commit2;
-    xof_context xof_ctx;
+    enc_ctx ctx_seed_commit1 = { 0 }, ctx_seed_commit2 = { 0 };
+    xof_context xof_ctx = { 0 };
     uint8_t tweaked_salt[MQOM2_PARAM_SALT_SIZE];
     uint8_t delta[MQOM2_PARAM_SEED_SIZE];
     uint8_t rseed[MQOM2_PARAM_TAU][MQOM2_PARAM_SEED_SIZE];
@@ -208,8 +208,8 @@ int BLC_Commit_default(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t
         __BENCHMARK_START__(BS_BLC_XOF);
 #if defined(USE_XOF_X4)
     if((e % 4) == 3){
+        xof_context_x4 xof_ctx_x4 = { 0 };
         /* Use the X4 XOF on the previously computed 4 */
-        xof_context_x4 xof_ctx_x4;
         const uint8_t *constant_6[4] = { (const uint8_t*) "\x06", (const uint8_t*) "\x06", (const uint8_t*) "\x06", (const uint8_t*) "\x06" };
         const uint8_t *to_hash_ptr[4] = { (const uint8_t*) ls_com[e-3], (const uint8_t*) ls_com[e-2], (const uint8_t*) ls_com[e-1], (const uint8_t*) ls_com[e] };
         uint8_t *hash_ptr[4] = { hash_ls_com[e-3], hash_ls_com[e-2], hash_ls_com[e-1], hash_ls_com[e] };
@@ -217,6 +217,7 @@ int BLC_Commit_default(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t
         ret = xof_update_x4(&xof_ctx_x4, constant_6, 1); ERR(ret, err);
         ret = xof_update_x4(&xof_ctx_x4, to_hash_ptr, MQOM2_PARAM_NB_EVALS * MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
         ret = xof_squeeze_x4(&xof_ctx_x4, hash_ptr, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+        xof_clean_ctx_x4(&xof_ctx_x4);
     }
     else if(e >= (4 * (MQOM2_PARAM_TAU / 4)))
         /* No room for X4 XOF, perform regular */
@@ -244,6 +245,9 @@ int BLC_Commit_default(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t
 
     ret = 0;
 err:
+    enc_clean_ctx(&ctx_seed_commit1);
+    enc_clean_ctx(&ctx_seed_commit2);
+    xof_clean_ctx(&xof_ctx);
     destroy_prg_cache(prg_cache);
     return ret;
 }
@@ -253,7 +257,7 @@ int BLC_Open_default(const blc_key_default_t* key, const uint16_t i_star[MQOM2_P
     int ret = -1;
     int e;
 #ifndef BLC_KEEP_ALL_TREES_IN_MEMORY
-    enc_ctx ctx_seed_commit1, ctx_seed_commit2;
+    enc_ctx ctx_seed_commit1 = { 0 }, ctx_seed_commit2 = { 0 };
     uint8_t lseed[MQOM2_PARAM_SEED_SIZE];
     uint8_t tweaked_salt[MQOM2_PARAM_SALT_SIZE];
 #endif
@@ -285,6 +289,10 @@ int BLC_Open_default(const blc_key_default_t* key, const uint16_t i_star[MQOM2_P
 
     ret = 0;
 err:
+#ifndef BLC_KEEP_ALL_TREES_IN_MEMORY
+    enc_clean_ctx(&ctx_seed_commit1);
+    enc_clean_ctx(&ctx_seed_commit2);
+#endif
     return ret;
 }
 
@@ -300,8 +308,8 @@ err:
 int BLC_Eval_default(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t com1[MQOM2_PARAM_DIGEST_SIZE], const uint8_t opening[MQOM2_PARAM_OPENING_SIZE], const uint16_t i_star[MQOM2_PARAM_TAU], field_ext_elt x_eval[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], field_ext_elt u_eval[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)])
 {
     int ret = -1;
-    enc_ctx ctx_seed_commit1, ctx_seed_commit2;
-    xof_context xof_ctx;
+    enc_ctx ctx_seed_commit1 = { 0 }, ctx_seed_commit2 = { 0 };
+    xof_context xof_ctx = { 0 };
     uint32_t e, i;
     uint8_t tweaked_salt[MQOM2_PARAM_SALT_SIZE];
     uint8_t lseed[MQOM2_PARAM_NB_EVALS][MQOM2_PARAM_SEED_SIZE];
@@ -418,7 +426,7 @@ int BLC_Eval_default(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t co
 #if defined(USE_XOF_X4)
     if((e % 4) == 3){
         /* Use the X4 XOF on the previously computed 4 */
-        xof_context_x4 xof_ctx_x4;
+        xof_context_x4 xof_ctx_x4 = { 0 };
         const uint8_t *constant_6[4] = { (const uint8_t*) "\x06", (const uint8_t*) "\x06", (const uint8_t*) "\x06", (const uint8_t*) "\x06" };
         const uint8_t *to_hash_ptr[4] = { (const uint8_t*) ls_com_e[LS_COMM_E_COEFF(e-3)], (const uint8_t*) ls_com_e[LS_COMM_E_COEFF(e-2)], (const uint8_t*) ls_com_e[LS_COMM_E_COEFF(e-1)], (const uint8_t*) ls_com_e[LS_COMM_E_COEFF(e)] };
         uint8_t *hash_ptr[4] = { hash_ls_com[e-3], hash_ls_com[e-2], hash_ls_com[e-1], hash_ls_com[e] };
@@ -426,6 +434,7 @@ int BLC_Eval_default(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t co
         ret = xof_update_x4(&xof_ctx_x4, constant_6, 1); ERR(ret, err);
         ret = xof_update_x4(&xof_ctx_x4, to_hash_ptr, MQOM2_PARAM_NB_EVALS * MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
         ret = xof_squeeze_x4(&xof_ctx_x4, hash_ptr, MQOM2_PARAM_DIGEST_SIZE); ERR(ret, err);
+	xof_clean_ctx_x4(&xof_ctx_x4);
     }
     else if(e >= (4 * (MQOM2_PARAM_TAU / 4)))
         /* No room for X4 XOF, perform regular */
@@ -455,6 +464,9 @@ int BLC_Eval_default(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const uint8_t co
     
     ret = 0;
 err:
+    enc_clean_ctx(&ctx_seed_commit1);
+    enc_clean_ctx(&ctx_seed_commit2);
+    xof_clean_ctx(&xof_ctx);
     destroy_prg_cache(prg_cache);
     return ret;
 }

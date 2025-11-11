@@ -1,5 +1,7 @@
 #ifdef SUPERCOP
 #include "crypto_sign.h"
+#else
+#include "api.h"
 #endif
 #include "keygen.h"
 
@@ -21,7 +23,7 @@ int KeyGen(const uint8_t seed_key[2 * MQOM2_PARAM_SEED_SIZE], uint8_t sk[MQOM2_S
 	uint8_t _x[BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)];
 	uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE];
 	uint32_t i;
-	xof_context xof_ctx;
+	xof_context xof_ctx = { 0 };
 	field_ext_elt *_A_hat = NULL;
 	field_ext_elt *_b_hat = NULL;
 	_A_hat = (field_ext_elt*)mqom_malloc(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU * MQOM2_PARAM_MQ_N * FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N) * sizeof(field_ext_elt));
@@ -76,11 +78,17 @@ int KeyGen(const uint8_t seed_key[2 * MQOM2_PARAM_SEED_SIZE], uint8_t sk[MQOM2_S
 	ret = 0;
 err:
 	if(_A_hat){
-		mqom_free(_A_hat);
+		mqom_free(_A_hat, MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU * MQOM2_PARAM_MQ_N * FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N) * sizeof(field_ext_elt));
 	}
 	if(_b_hat){
-		mqom_free(_b_hat);
+		mqom_free(_b_hat, MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU * FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N) * sizeof(field_ext_elt));
 	}
+	mqom_cleanse((void*)x, sizeof(x));
+	mqom_cleanse((void*)y, sizeof(y));
+	mqom_cleanse((void*)_x, sizeof(_x));
+	mqom_cleanse((void*)mseed_eq, sizeof(mseed_eq));
+	xof_clean_ctx(&xof_ctx);
+
 	return ret;
 }
 
@@ -95,7 +103,7 @@ int KeyGen(const uint8_t seed_key[2 * MQOM2_PARAM_SEED_SIZE], uint8_t sk[MQOM2_S
 	uint8_t _x[BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)];
 	uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE];
 	uint32_t i, j;
-	xof_context xof_ctx;
+	xof_context xof_ctx = { 0 };
 	/* Only use rows for A_hat and b_hat to save memory */
 	field_ext_elt A_hat_row[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)];
 	/* NOTE: we reuse the A_hat_row memory slot to save memory */
@@ -147,11 +155,17 @@ int KeyGen(const uint8_t seed_key[2 * MQOM2_PARAM_SEED_SIZE], uint8_t sk[MQOM2_S
 
 	ret = 0;
 err:
+	mqom_cleanse((void*)x, sizeof(x));
+	mqom_cleanse((void*)y, sizeof(y));
+	mqom_cleanse((void*)_x, sizeof(_x));
+	mqom_cleanse((void*)mseed_eq, sizeof(mseed_eq));
+	xof_clean_ctx(&xof_ctx);
+
 	return ret;
 }
 #endif
 
-#if !defined(MQOM2_FOR_MUPQ)
+#if !defined(MQOM2_FOR_MUPQ) && !defined(MQOM2_FOR_LIBOQS)
 #ifdef SUPERCOP
 extern void randombytes(unsigned char* x, unsigned long long xlen);
 #else
@@ -166,7 +180,7 @@ int crypto_sign_keypair(unsigned char *pk, unsigned char *sk) {
 	/* Sample the seed key */
 	uint8_t seed_key[2 * MQOM2_PARAM_SEED_SIZE];
 
-#ifdef SUPERCOP
+#if defined(SUPERCOP) || defined(MQOM2_FOR_LIBOQS)
 	randombytes(seed_key, 2 * MQOM2_PARAM_SEED_SIZE);
 #else
 	ret = randombytes(seed_key, 2 * MQOM2_PARAM_SEED_SIZE); ERR(ret, err);

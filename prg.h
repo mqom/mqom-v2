@@ -7,6 +7,12 @@
 #include "enc.h"
 #include "prg_cache.h"
 
+/* Deal with namespacing */
+#define PRG_memopt MQOM_NAMESPACE(PRG_memopt)
+#define PRG MQOM_NAMESPACE(PRG)
+#define PRG_x4 MQOM_NAMESPACE(PRG_x4)
+#define PRG_x8 MQOM_NAMESPACE(PRG_x8)
+
 int PRG_memopt(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], uint32_t e, const uint8_t seed[MQOM2_PARAM_SEED_SIZE], uint32_t start_nbytes, uint32_t nbytes, uint8_t *out_data, uint8_t in_out_leftover[MQOM2_PARAM_SEED_SIZE], prg_key_sched_cache *cache);
 
 int PRG(const uint8_t salt[MQOM2_PARAM_SALT_SIZE], uint32_t e, const uint8_t seed[MQOM2_PARAM_SEED_SIZE], uint32_t nbytes, uint8_t *out_data, prg_key_sched_cache *cache);

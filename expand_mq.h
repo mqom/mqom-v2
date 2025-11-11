@@ -6,6 +6,11 @@
 #include "fields.h"
 #include <stdlib.h>
 
+/* Deal with namespacing */
+#define ExpandEquations_memopt_init MQOM_NAMESPACE(ExpandEquations_memopt_init)
+#define ExpandEquations_memopt_update MQOM_NAMESPACE(ExpandEquations_memopt_update)
+#define ExpandEquations MQOM_NAMESPACE(ExpandEquations)
+
 /* ExpandEquations context used for the "streaming" API, in order
  * to save memory.
  */

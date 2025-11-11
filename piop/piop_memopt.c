@@ -6,7 +6,8 @@
 #include "benchmark.h"
 #include "expand_mq.h"
 
-int ExpandBatchingChallenge(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], field_ext_elt Gamma[MQOM2_PARAM_ETA][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)]) {
+#if MQOM2_PARAM_WITH_STATISTICAL_BATCHING == 1
+static int ExpandBatchingChallenge(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], field_ext_elt Gamma[MQOM2_PARAM_ETA][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)]) {
     int ret = -1;
     uint32_t i;
     uint8_t stream[MQOM2_PARAM_ETA*BYTE_SIZE_FIELD_EXT(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)];
@@ -22,10 +23,12 @@ int ExpandBatchingChallenge(const uint8_t com[MQOM2_PARAM_DIGEST_SIZE], field_ex
 
     ret = 0;
 err:
+    xof_clean_ctx(&xof_ctx);
     return ret;
 }
+#endif
 
-int ComputePz_xTau(const field_ext_elt x0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE], field_ext_elt z0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)], field_ext_elt z1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)]) {
+static int ComputePz_xTau(const field_ext_elt x0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], const field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], const uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE], field_ext_elt z0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)], field_ext_elt z1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)]) {
     int ret = -1;
     uint32_t i, j, e;
     ExpandEquations_ctx EEctx;
@@ -140,7 +143,7 @@ err:
 /***************************************************************/
 /***************************************************************/
 
-int ComputePzEval_xTau(const field_ext_elt r[MQOM2_PARAM_TAU], const field_ext_elt v_x[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], const uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE], const field_ext_elt y[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)], field_ext_elt v_z[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)]) {
+static int ComputePzEval_xTau(const field_ext_elt r[MQOM2_PARAM_TAU], const field_ext_elt v_x[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], const uint8_t mseed_eq[2 * MQOM2_PARAM_SEED_SIZE], const field_ext_elt y[FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)], field_ext_elt v_z[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_M/MQOM2_PARAM_MU)]) {
     int ret = -1;
     uint32_t i, j, e;
     ExpandEquations_ctx EEctx;
