@@ -463,13 +463,13 @@ static inline uint8_t gf2_gf256_vect_mult_avx2(const uint8_t *a_gf2, const uint8
 		/* Create a selection mask from the bits in _a */
 		const __m256i shuff_msk = _mm256_set_epi8(3, 3, 3,  3,  3, 3, 3, 3, 2, 2, 2,  2,  2, 2, 2, 2,
                                                           1, 1, 1,  1,  1, 1, 1, 1, 0, 0, 0,  0,  0, 0, 0, 0);
-		const __m256i and_msk = _mm256_set_epi8(0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001,
-							0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001,
-							0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001,
-							0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001);
+		const __m256i and_msk = _mm256_set_epi8(-128, 64, 32, 16, 8, 4, 2, 1,
+							-128, 64, 32, 16, 8, 4, 2, 1,
+							-128, 64, 32, 16, 8, 4, 2, 1,
+							-128, 64, 32, 16, 8, 4, 2, 1);
 
 		/* Copy in the two lanes */
-		_a = _mm256_permute4x64_epi64(_a, 0b01000100);
+		_a = _mm256_permute4x64_epi64(_a, 68);
 		/* Only keep the selection bits */
 		_a = _mm256_shuffle_epi8(_a, shuff_msk) & and_msk;
 		/* Transform these bits to either 0 or 0xFF */
@@ -515,13 +515,13 @@ static inline void gf256_gf2_constant_vect_mult_avx2(uint8_t a_gf256, const uint
 		/* Create a selection mask from the bits in _a */
 		const __m256i shuff_msk = _mm256_set_epi8(3, 3, 3,  3,  3, 3, 3, 3, 2, 2, 2,  2,  2, 2, 2, 2,
                                                           1, 1, 1,  1,  1, 1, 1, 1, 0, 0, 0,  0,  0, 0, 0, 0);
-		const __m256i and_msk = _mm256_set_epi8(0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001,
-							0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001,
-							0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001,
-							0b10000000, 0b01000000, 0b00100000, 0b00010000, 0b00001000, 0b00000100, 0b00000010, 0b00000001);
+		const __m256i and_msk = _mm256_set_epi8(-128, 64, 32, 16, 8, 4, 2, 1,
+							-128, 64, 32, 16, 8, 4, 2, 1,
+							-128, 64, 32, 16, 8, 4, 2, 1,
+							-128, 64, 32, 16, 8, 4, 2, 1);
 
 		/* Copy in the two lanes */
-		_b = _mm256_permute4x64_epi64(_b, 0b01000100);
+		_b = _mm256_permute4x64_epi64(_b, 68);
 		/* Only keep the selection bits */
 		_b = _mm256_shuffle_epi8(_b, shuff_msk) & and_msk;
 		/* Transform these bits to either 0 or 0xFF */
@@ -634,8 +634,8 @@ static inline void gf256_vect_lift_from_gf16_avx2(const uint8_t *b_gf16, uint8_t
                                                        -1, 7, -1,  6,  -1, 5, -1, 4, -1, 3, -1,  2,  -1, 1, -1, 0);
 	const __m256i shuff_msk_odd  = _mm256_set_epi8(15, -1, 14, -1,  13,  -1, 12, -1, 11, -1, 10, -1,  9,  -1, 8, -1,
                                                        7, -1, 6, -1,  5,  -1, 4, -1, 3, -1, 2, -1,  1,  -1, 0, -1);
-	const __m256i lifting_lookup = _mm256_set_epi8(0x0c, 0x0d, 0xec, 0xed, 0x51, 0x50, 0xb1, 0xb0, 0xbc, 0xbd, 0x5c, 0x5d, 0xe1, 0xe0, 0x01, 0x00,
-  						       0x0c, 0x0d, 0xec, 0xed, 0x51, 0x50, 0xb1, 0xb0, 0xbc, 0xbd, 0x5c, 0x5d, 0xe1, 0xe0, 0x01, 0x00);
+	const __m256i lifting_lookup = _mm256_set_epi8(12, 13, -20, -19, 81, 80, -79, -80, -68, -67, 92, 93, -31, -32, 1, 0,
+  						       12, 13, -20, -19, 81, 80, -79, -80, -68, -67, 92, 93, -31, -32, 1, 0);
 	const __m256i nib_mask = _mm256_set1_epi8(0x0f);
 
 	for(i = 0; i < len; i += 32){
@@ -648,7 +648,7 @@ static inline void gf256_vect_lift_from_gf16_avx2(const uint8_t *b_gf16, uint8_t
                 }
 
 		/* Duplicate lanes */
-		_a_gf16 = _mm256_permute4x64_epi64(_a_gf16, 0b01000100);
+		_a_gf16 = _mm256_permute4x64_epi64(_a_gf16, 68);
 		/* Isolate the nibbles in _a_gf16 */
 		_a = _a_gf16 & nib_mask;
 		_b = _mm256_srli_epi64(_a_gf16, 4) & nib_mask;
@@ -862,13 +862,13 @@ static inline void gf256to2_gf2_constant_vect_mult_avx2(uint16_t a_gf256to2, con
 		/* Create a selection mask from the bits in _a */
 		const __m256i shuff_msk = _mm256_set_epi8(1, 1, 1,  1,  1, 1, 1, 1, 1, 1, 1,  1,  1, 1, 1, 1,
                                                           0, 0, 0,  0,  0, 0, 0, 0, 0, 0, 0,  0,  0, 0, 0, 0);
-		const __m256i and_msk = _mm256_set_epi8(0b10000000, 0b10000000, 0b01000000, 0b01000000, 0b00100000, 0b00100000, 0b00010000, 0b00010000,
-							0b00001000, 0b00001000, 0b00000100, 0b00000100, 0b00000010, 0b00000010, 0b00000001, 0b00000001,
-							0b10000000, 0b10000000, 0b01000000, 0b01000000, 0b00100000, 0b00100000, 0b00010000, 0b00010000,
-							0b00001000, 0b00001000, 0b00000100, 0b00000100, 0b00000010, 0b00000010, 0b00000001, 0b00000001);
+		const __m256i and_msk = _mm256_set_epi8(-128, -128, 64, 64, 32, 32, 16, 16,
+							8, 8, 4, 4, 2, 2, 1, 1,
+							-128, -128, 64, 64, 32, 32, 16, 16,
+							8, 8, 4, 4, 2, 2, 1, 1);
 
 		/* Only keep the selection bits */
-		_b = _mm256_permute4x64_epi64(_b, 0b01000100);
+		_b = _mm256_permute4x64_epi64(_b, 68);
 		_b = _mm256_shuffle_epi8(_b, shuff_msk);
 		_b = _b & and_msk;
 		/* Transform these bits to either 0 or 0xFF */
@@ -908,7 +908,7 @@ static inline void gf256to2_gf256_constant_vect_mult_avx2(uint16_t a_gf256to2, c
 		uint32_t to_load = (len - i) < 16 ? (len - i) : 16;
                 _b = load_incomplete_m256((const uint8_t*)&b_gf256[i], to_load);
 		/* Copy in the two lanes */
-		_b = _mm256_permute4x64_epi64(_b, 0b01000100);
+		_b = _mm256_permute4x64_epi64(_b, 68);
                 /* Duplicate elements in the register */
                 _b = _mm256_shuffle_epi8(_b, shuff_msk);
                 /* Vectorized multiplication in GF(256) */
@@ -943,12 +943,12 @@ static inline uint16_t gf2_gf256to2_vect_mult_avx2(const uint8_t *a_gf2, const u
 		/* Create a selection mask from the bits in _a */
 		const __m256i shuff_msk = _mm256_set_epi8(1, 1, 1,  1,  1, 1, 1, 1, 1, 1, 1,  1,  1, 1, 1, 1,
                                                           0, 0, 0,  0,  0, 0, 0, 0, 0, 0, 0,  0,  0, 0, 0, 0);
-		const __m256i and_msk = _mm256_set_epi8(0b10000000, 0b10000000, 0b01000000, 0b01000000, 0b00100000, 0b00100000, 0b00010000, 0b00010000,
-							0b00001000, 0b00001000, 0b00000100, 0b00000100, 0b00000010, 0b00000010, 0b00000001, 0b00000001,
-							0b10000000, 0b10000000, 0b01000000, 0b01000000, 0b00100000, 0b00100000, 0b00010000, 0b00010000,
-							0b00001000, 0b00001000, 0b00000100, 0b00000100, 0b00000010, 0b00000010, 0b00000001, 0b00000001);
+		const __m256i and_msk = _mm256_set_epi8(-128, -128, 64, 64, 32, 32, 16, 16,
+							8, 8, 4, 4, 2, 2, 1, 1,
+							-128, -128, 64, 64, 32, 32, 16, 16,
+							8, 8, 4, 4, 2, 2, 1, 1);
 		/* Copy in the two lanes */
-		_a = _mm256_permute4x64_epi64(_a, 0b01000100);
+		_a = _mm256_permute4x64_epi64(_a, 68);
 		/* Only keep the selection bits */
 		_a = _mm256_shuffle_epi8(_a, shuff_msk) & and_msk;
 		/* Transform these bits to either 0 or 0xFF */
@@ -994,7 +994,7 @@ static inline uint16_t gf256_gf256to2_vect_mult_avx2(const uint8_t *a_gf256, con
                         _b = _mm256_lddqu_si256((__m256i*)&b_gf256to2[i / 2]);
                 }
                 /* Duplicate the values in _a */
-		_a = _mm256_permute4x64_epi64(_a, 0b01000100);
+		_a = _mm256_permute4x64_epi64(_a, 68);
                 _a = _mm256_shuffle_epi8(_a, shuff_msk);
                 /* Multiply in GF(256) */
                 accu ^= gf256_mult_vectorized_avx2(_a, _b);
@@ -1146,7 +1146,7 @@ static inline uint16_t gf16_gf256to2_vect_mult_avx2(const uint8_t *a_gf16, const
                         _b = _mm256_lddqu_si256((__m256i*)&b_gf256to2[i / 2]);
                 }
                 /* Duplicate the values in _a */
-                _a = _mm256_permute4x64_epi64(_a, 0b01000100);
+                _a = _mm256_permute4x64_epi64(_a, 68);
                 _a = _mm256_shuffle_epi8(_a, shuff_msk);
                 /* Multiply in GF(256) */
                 accu ^= gf256_mult_vectorized_avx2(_a, _b);
