@@ -43,12 +43,10 @@ void btimer_start(btimer_t *timer);
 void btimer_end(btimer_t *timer);
 
 /* NOTE: dummy definitions to be replaced when benchmarks needed */
-__attribute__((weak,noinline)) void btimer_start(btimer_t *timer)
-{
+__attribute__((weak, noinline)) void btimer_start(btimer_t *timer) {
 	(void)timer;
 }
-__attribute__((weak,noinline)) void btimer_end(btimer_t *timer)
-{
+__attribute__((weak, noinline)) void btimer_end(btimer_t *timer) {
 	(void)timer;
 }
 

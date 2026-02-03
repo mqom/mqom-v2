@@ -21,9 +21,9 @@ http://creativecommons.org/publicdomain/zero/1.0/
 #include "KeccakSpongetimes4.h"
 
 typedef struct {
-    KeccakWidth1600times4_SpongeInstance sponge;
-    unsigned int fixedOutputLength;
-    unsigned char delimitedSuffix;
+	KeccakWidth1600times4_SpongeInstance sponge;
+	unsigned int fixedOutputLength;
+	unsigned char delimitedSuffix;
 } Keccak_HashInstancetimes4;
 
 /**
@@ -90,15 +90,15 @@ HashReturn Keccak_HashUpdatetimes4(Keccak_HashInstancetimes4 *hashInstance, cons
   */
 HashReturn Keccak_HashFinaltimes4(Keccak_HashInstancetimes4 *hashInstance, BitSequence **hashval);
 
- /**
-  * Function to squeeze output data.
-  * @param  hashInstance    Pointer to the hash instance initialized by Keccak_HashInitialize().
-  * @param  data        Array of 4 pointers to the buffers where to store the output data.
-  * @param  databitlen  The number of output bits desired (must be a multiple of 8).
-  * @pre    Keccak_HashFinal() must have been already called.
-  * @pre    @a databitlen is a multiple of 8.
-  * @return SUCCESS if successful, FAIL otherwise.
-  */
+/**
+ * Function to squeeze output data.
+ * @param  hashInstance    Pointer to the hash instance initialized by Keccak_HashInitialize().
+ * @param  data        Array of 4 pointers to the buffers where to store the output data.
+ * @param  databitlen  The number of output bits desired (must be a multiple of 8).
+ * @pre    Keccak_HashFinal() must have been already called.
+ * @pre    @a databitlen is a multiple of 8.
+ * @return SUCCESS if successful, FAIL otherwise.
+ */
 HashReturn Keccak_HashSqueezetimes4(Keccak_HashInstancetimes4 *hashInstance, BitSequence **data, BitLength databitlen);
 
 #else

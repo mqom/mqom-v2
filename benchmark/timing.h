@@ -4,15 +4,15 @@
 #include <stdint.h>
 #include <stddef.h>
 /* On POSIX platforms, use the timeval structure */
-#if defined(__unix__) || (defined (__APPLE__) && defined (__MACH__))
+#if defined(__unix__) || (defined (__APPLE__) && defined (__MACH__)) || defined(_WIN32)
 #include <time.h>
 #include <sys/time.h>
 #else
 /* Other non-POSIX platforms */
 /* Define our timeval structure */
 struct timeval {
-    long int tv_sec;
-    long int tv_usec;
+	long int tv_sec;
+	long int tv_usec;
 };
 /* The gettimeofday API is external and should be provided by the user */
 extern void gettimeofday(struct timeval*, void*);
@@ -42,14 +42,14 @@ extern void gettimeofday(struct timeval*, void*);
 #define btimer_get_cycles MQOM_NAMESPACE(btimer_get_cycles)
 
 typedef struct btimer_t {
-    unsigned int counter;
-    // gettimeofday
-    double nb_milliseconds;
-    struct timeval start, stop;
-    // rdtscp or RDPMC
-    uint64_t nb_cycles;
-    unsigned int garbage;
-    uint64_t cstart, cstop;
+	unsigned int counter;
+	// gettimeofday
+	double nb_milliseconds;
+	struct timeval start, stop;
+	// rdtscp or RDPMC
+	uint64_t nb_cycles;
+	unsigned int garbage;
+	uint64_t cstart, cstop;
 } btimer_t;
 
 void btimer_init(btimer_t* timer);

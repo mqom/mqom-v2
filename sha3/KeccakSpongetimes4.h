@@ -35,10 +35,10 @@ http://creativecommons.org/publicdomain/zero/1.0/
 
 #ifdef XKCP_has_KeccakP1600times4
 #if !defined(SUPERCOP)
-    #include "KeccakP-1600-times4-SnP.h"
+#include "KeccakP-1600-times4-SnP.h"
 #else
-    #include <libkeccak.a.headers/KeccakP-1600-times4-SnP.h>
+#include <libkeccak.a.headers/KeccakP-1600-times4-SnP.h>
 #endif
-    KCP_DeclareSpongeStructuretimes4(KeccakWidth1600times4, KeccakP1600times4_statesSizeInBytes, KeccakP1600times4_statesAlignment)
-    KCP_DeclareSpongeFunctionstimes4(KeccakWidth1600times4)
+KCP_DeclareSpongeStructuretimes4(KeccakWidth1600times4, KeccakP1600times4_statesSizeInBytes, KeccakP1600times4_statesAlignment)
+KCP_DeclareSpongeFunctionstimes4(KeccakWidth1600times4)
 #endif

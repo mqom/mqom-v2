@@ -34,9 +34,9 @@ typedef size_t BitLength;
 typedef enum { KECCAK_SUCCESS = 0, KECCAK_FAIL = 1, KECCAK_BAD_HASHLEN = 2 } HashReturn;
 
 typedef struct {
-    KeccakWidth1600_SpongeInstance sponge;
-    unsigned int fixedOutputLength;
-    unsigned char delimitedSuffix;
+	KeccakWidth1600_SpongeInstance sponge;
+	unsigned int fixedOutputLength;
+	unsigned char delimitedSuffix;
 } Keccak_HashInstance;
 
 /**
@@ -107,15 +107,15 @@ HashReturn Keccak_HashUpdate(Keccak_HashInstance *hashInstance, const BitSequenc
   */
 HashReturn Keccak_HashFinal(Keccak_HashInstance *hashInstance, BitSequence *hashval);
 
- /**
-  * Function to squeeze output data.
-  * @param  hashInstance    Pointer to the hash instance initialized by Keccak_HashInitialize().
-  * @param  data        Pointer to the buffer where to store the output data.
-  * @param  databitlen  The number of output bits desired (must be a multiple of 8).
-  * @pre    Keccak_HashFinal() must have been already called.
-  * @pre    @a databitlen is a multiple of 8.
-  * @return KECCAK_SUCCESS if successful, KECCAK_FAIL otherwise.
-  */
+/**
+ * Function to squeeze output data.
+ * @param  hashInstance    Pointer to the hash instance initialized by Keccak_HashInitialize().
+ * @param  data        Pointer to the buffer where to store the output data.
+ * @param  databitlen  The number of output bits desired (must be a multiple of 8).
+ * @pre    Keccak_HashFinal() must have been already called.
+ * @pre    @a databitlen is a multiple of 8.
+ * @return KECCAK_SUCCESS if successful, KECCAK_FAIL otherwise.
+ */
 HashReturn Keccak_HashSqueeze(Keccak_HashInstance *hashInstance, BitSequence *data, BitLength databitlen);
 
 #else

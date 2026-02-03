@@ -1,7 +1,21 @@
 #include "rijndael_platform.h"
 
-#if defined(RIJNDAEL_TABLE)
+#if !defined(RIJNDAEL_AES_NI) || defined(RIJNDAEL_TABLE)
 #include "rijndael_table.h"
+
+#if defined(__GNUC__) && (__GNUC__ >= 11)
+/* XXX: in case of gcc, remove the following 'Werror' as they
+ * will trigger false positives */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+
+/* When asked to, force the table to be in "flash" */
+#if defined(RIJNDAEL_TABLE_FORCE_IN_FLASH)
+#undef EMBEDDED_SRAM
+#define EMBEDDED_SRAM
+#endif
 
 /* Useful macros */
 /*
@@ -11,9 +25,9 @@
 #define GET_UINT32_LE(n,b,i)                            \
 do {                                                    \
     (n) = ( (uint32_t) (b)[(i)    ]       )             \
-	| ( (uint32_t) (b)[(i) + 1] <<	8 )		\
-	| ( (uint32_t) (b)[(i) + 2] << 16 )		\
-	| ( (uint32_t) (b)[(i) + 3] << 24 );		\
+    | ( (uint32_t) (b)[(i) + 1] <<  8 )     \
+    | ( (uint32_t) (b)[(i) + 2] << 16 )     \
+    | ( (uint32_t) (b)[(i) + 3] << 24 );        \
 } while( 0 )
 #endif
 
@@ -31,22 +45,22 @@ do {                                                            \
 
 /* S-Box */
 EMBEDDED_SRAM static const uint8_t sbox[256] = {
-     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
-     0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
-     0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
-     0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
-     0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84,
-     0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf,
-     0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8,
-     0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2,
-     0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73,
-     0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb,
-     0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79,
-     0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08,
-     0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
-     0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
-     0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
-     0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
+	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
+	0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
+	0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
+	0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
+	0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84,
+	0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf,
+	0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8,
+	0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2,
+	0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73,
+	0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb,
+	0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79,
+	0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08,
+	0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
+	0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
+	0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
+	0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 };
 
 /* Encryption tables */
@@ -320,11 +334,11 @@ EMBEDDED_SRAM static const uint32_t Te3[256] = {
 };
 
 /* RCON constants table */
-EMBEDDED_SRAM static const uint32_t rcon[14] = {
+static const uint32_t rcon[14] = {
 	0x00000001, 0x00000002, 0x00000004, 0x00000008,
 	0x00000010, 0x00000020, 0x00000040, 0x00000080,
 	0x0000001b, 0x00000036, 0x0000006c, 0x000000d8,
-        0x000000ab, 0x0000004d
+	0x000000ab, 0x0000004d
 };
 
 /* Rijndael primitives *******************************************************/
@@ -332,347 +346,347 @@ EMBEDDED_SRAM static const uint32_t rcon[14] = {
 
 /* Encryption key schedule */
 #define RIJNDAEL_SETKEY_ENC(ctx, key, rtype_) do { \
-	uint32_t i;\
-	/* Get the round keys pointer as uint32_t (NOTE: buffer should be 4 bytes aligned) */\
-	uint32_t *RK = (uint32_t*)(ctx->rk);\
+    uint32_t i;\
+    /* Get the round keys pointer as uint32_t (NOTE: buffer should be 4 bytes aligned) */\
+    uint32_t *RK = (uint32_t*)(ctx->rk);\
 \
-	if((ctx == NULL) || (key == NULL)){\
-		goto err;\
-	}\
-	switch(rtype_){\
-		case AES128:{\
-			ctx->Nr = 10;\
-			ctx->Nk = 4;\
-			ctx->Nb = 4;\
-			break;\
-		}\
-		case AES256:{\
-			ctx->Nr = 14;\
-			ctx->Nk = 8;\
-			ctx->Nb = 4;\
-			break;\
-		}\
-		case RIJNDAEL_256_256:{\
-			ctx->Nr = 14;\
-			ctx->Nk = 8;\
-			ctx->Nb = 8;\
-			break;\
-		}\
-		default:{\
-			ret = -1;\
-			goto err;\
-		}\
-	}\
-	ctx->rtype = rtype_;\
+    if((ctx == NULL) || (key == NULL)){\
+        goto err;\
+    }\
+    switch(rtype_){\
+        case AES128:{\
+            ctx->Nr = 10;\
+            ctx->Nk = 4;\
+            ctx->Nb = 4;\
+            break;\
+        }\
+        case AES256:{\
+            ctx->Nr = 14;\
+            ctx->Nk = 8;\
+            ctx->Nb = 4;\
+            break;\
+        }\
+        case RIJNDAEL_256_256:{\
+            ctx->Nr = 14;\
+            ctx->Nk = 8;\
+            ctx->Nb = 8;\
+            break;\
+        }\
+        default:{\
+            ret = -1;\
+            goto err;\
+        }\
+    }\
+    ctx->rtype = rtype_;\
 \
-	/* Perform the key schedule */\
-	for(i = 0; i < ctx->Nk; i++){\
-		GET_UINT32_LE(RK[i], key, (4*i));\
-	}\
+    /* Perform the key schedule */\
+    for(i = 0; i < ctx->Nk; i++){\
+        GET_UINT32_LE(RK[i], key, (4*i));\
+    }\
 \
-	switch(ctx->Nr){\
-		case 10:{\
-			for(i = 0; i < 10; i++){\
-				RK[4]  = RK[0] ^ rcon[i] ^\
-					( (uint32_t) sbox[ ( RK[3] >>  8 ) & 0xFF ]       ) ^\
-					( (uint32_t) sbox[ ( RK[3] >> 16 ) & 0xFF ] <<  8 ) ^\
-					( (uint32_t) sbox[ ( RK[3] >> 24 ) & 0xFF ] << 16 ) ^\
-					( (uint32_t) sbox[ ( RK[3]       ) & 0xFF ] << 24 );\
-				RK[5]  = RK[1] ^ RK[4];\
-				RK[6]  = RK[2] ^ RK[5];\
-				RK[7]  = RK[3] ^ RK[6];\
-				RK += 4;\
-			}\
-			break;\
-		}\
-		case 12:{\
-			for(i = 0; i < 8; i++){\
-				RK[6]  = RK[0] ^ rcon[i] ^\
-					( (uint32_t) sbox[ ( RK[5] >>  8 ) & 0xFF ]       ) ^\
-					( (uint32_t) sbox[ ( RK[5] >> 16 ) & 0xFF ] <<  8 ) ^\
-					( (uint32_t) sbox[ ( RK[5] >> 24 ) & 0xFF ] << 16 ) ^\
-					( (uint32_t) sbox[ ( RK[5]       ) & 0xFF ] << 24 );\
-				RK[7]  = RK[1] ^ RK[6];\
-				RK[8]  = RK[2] ^ RK[7];\
-				RK[9]  = RK[3] ^ RK[8];\
-				RK[10] = RK[4] ^ RK[9];\
-				RK[11] = RK[5] ^ RK[10];\
-				RK += 6;\
-			}\
-			break;\
-		}\
-		case 14:{\
-			unsigned int rcon_offset = 0;\
-			for(i = 0; i < 7; i++){\
-				RK[8]  = RK[0] ^ rcon[rcon_offset++] ^\
-					( (uint32_t) sbox[ ( RK[7] >>  8 ) & 0xFF ]       ) ^\
-					( (uint32_t) sbox[ ( RK[7] >> 16 ) & 0xFF ] <<  8 ) ^\
-					( (uint32_t) sbox[ ( RK[7] >> 24 ) & 0xFF ] << 16 ) ^\
-					( (uint32_t) sbox[ ( RK[7]       ) & 0xFF ] << 24 );\
-				RK[9]  = RK[1] ^ RK[8];\
-				RK[10] = RK[2] ^ RK[9];\
-				RK[11] = RK[3] ^ RK[10];\
-				if((i == 6) && (ctx->Nb != 8)){ \
-					break; \
-				} \
-				RK[12] = RK[4] ^\
-					( (uint32_t) sbox[ ( RK[11]       ) & 0xFF ]       ) ^\
-					( (uint32_t) sbox[ ( RK[11] >>  8 ) & 0xFF ] <<  8 ) ^\
-					( (uint32_t) sbox[ ( RK[11] >> 16 ) & 0xFF ] << 16 ) ^\
-					( (uint32_t) sbox[ ( RK[11] >> 24 ) & 0xFF ] << 24 );\
-				RK[13] = RK[5] ^ RK[12];\
-				RK[14] = RK[6] ^ RK[13];\
-				RK[15] = RK[7] ^ RK[14];\
-				RK += 8;\
-				if(ctx->Nb == 8){\
-					/* Rijndael with 256 block size case */\
-					RK[8]  = RK[0] ^ rcon[rcon_offset++] ^\
-						( (uint32_t) sbox[ ( RK[7] >>  8 ) & 0xFF ]       ) ^\
-						( (uint32_t) sbox[ ( RK[7] >> 16 ) & 0xFF ] <<  8 ) ^\
-						( (uint32_t) sbox[ ( RK[7] >> 24 ) & 0xFF ] << 16 ) ^\
-						( (uint32_t) sbox[ ( RK[7]       ) & 0xFF ] << 24 );\
-					RK[9]  = RK[1] ^ RK[8];\
-					RK[10] = RK[2] ^ RK[9];\
-					RK[11] = RK[3] ^ RK[10];\
-					RK[12] = RK[4] ^\
-						( (uint32_t) sbox[ ( RK[11]       ) & 0xFF ]       ) ^\
-						( (uint32_t) sbox[ ( RK[11] >>  8 ) & 0xFF ] <<  8 ) ^\
-						( (uint32_t) sbox[ ( RK[11] >> 16 ) & 0xFF ] << 16 ) ^\
-						( (uint32_t) sbox[ ( RK[11] >> 24 ) & 0xFF ] << 24 );\
-					RK[13] = RK[5] ^ RK[12];\
-					RK[14] = RK[6] ^ RK[13];\
-					RK[15] = RK[7] ^ RK[14];\
-					RK += 8;\
-				}\
-			}\
-			break;\
-		}\
-		default:{\
-			goto err;\
-		}\
-	}\
+    switch(ctx->Nr){\
+        case 10:{\
+            for(i = 0; i < 10; i++){\
+                RK[4]  = RK[0] ^ rcon[i] ^\
+                    ( (uint32_t) sbox[ ( RK[3] >>  8 ) & 0xFF ]       ) ^\
+                    ( (uint32_t) sbox[ ( RK[3] >> 16 ) & 0xFF ] <<  8 ) ^\
+                    ( (uint32_t) sbox[ ( RK[3] >> 24 ) & 0xFF ] << 16 ) ^\
+                    ( (uint32_t) sbox[ ( RK[3]       ) & 0xFF ] << 24 );\
+                RK[5]  = RK[1] ^ RK[4];\
+                RK[6]  = RK[2] ^ RK[5];\
+                RK[7]  = RK[3] ^ RK[6];\
+                RK += 4;\
+            }\
+            break;\
+        }\
+        case 12:{\
+            for(i = 0; i < 8; i++){\
+                RK[6]  = RK[0] ^ rcon[i] ^\
+                    ( (uint32_t) sbox[ ( RK[5] >>  8 ) & 0xFF ]       ) ^\
+                    ( (uint32_t) sbox[ ( RK[5] >> 16 ) & 0xFF ] <<  8 ) ^\
+                    ( (uint32_t) sbox[ ( RK[5] >> 24 ) & 0xFF ] << 16 ) ^\
+                    ( (uint32_t) sbox[ ( RK[5]       ) & 0xFF ] << 24 );\
+                RK[7]  = RK[1] ^ RK[6];\
+                RK[8]  = RK[2] ^ RK[7];\
+                RK[9]  = RK[3] ^ RK[8];\
+                RK[10] = RK[4] ^ RK[9];\
+                RK[11] = RK[5] ^ RK[10];\
+                RK += 6;\
+            }\
+            break;\
+        }\
+        case 14:{\
+            unsigned int rcon_offset = 0;\
+            for(i = 0; i < 7; i++){\
+                RK[8]  = RK[0] ^ rcon[rcon_offset++] ^\
+                    ( (uint32_t) sbox[ ( RK[7] >>  8 ) & 0xFF ]       ) ^\
+                    ( (uint32_t) sbox[ ( RK[7] >> 16 ) & 0xFF ] <<  8 ) ^\
+                    ( (uint32_t) sbox[ ( RK[7] >> 24 ) & 0xFF ] << 16 ) ^\
+                    ( (uint32_t) sbox[ ( RK[7]       ) & 0xFF ] << 24 );\
+                RK[9]  = RK[1] ^ RK[8];\
+                RK[10] = RK[2] ^ RK[9];\
+                RK[11] = RK[3] ^ RK[10];\
+                if((i == 6) && (ctx->Nb != 8)){ \
+                    break; \
+                } \
+                RK[12] = RK[4] ^\
+                    ( (uint32_t) sbox[ ( RK[11]       ) & 0xFF ]       ) ^\
+                    ( (uint32_t) sbox[ ( RK[11] >>  8 ) & 0xFF ] <<  8 ) ^\
+                    ( (uint32_t) sbox[ ( RK[11] >> 16 ) & 0xFF ] << 16 ) ^\
+                    ( (uint32_t) sbox[ ( RK[11] >> 24 ) & 0xFF ] << 24 );\
+                RK[13] = RK[5] ^ RK[12];\
+                RK[14] = RK[6] ^ RK[13];\
+                RK[15] = RK[7] ^ RK[14];\
+                RK += 8;\
+                if(ctx->Nb == 8){\
+                    /* Rijndael with 256 block size case */\
+                    RK[8]  = RK[0] ^ rcon[rcon_offset++] ^\
+                        ( (uint32_t) sbox[ ( RK[7] >>  8 ) & 0xFF ]       ) ^\
+                        ( (uint32_t) sbox[ ( RK[7] >> 16 ) & 0xFF ] <<  8 ) ^\
+                        ( (uint32_t) sbox[ ( RK[7] >> 24 ) & 0xFF ] << 16 ) ^\
+                        ( (uint32_t) sbox[ ( RK[7]       ) & 0xFF ] << 24 );\
+                    RK[9]  = RK[1] ^ RK[8];\
+                    RK[10] = RK[2] ^ RK[9];\
+                    RK[11] = RK[3] ^ RK[10];\
+                    RK[12] = RK[4] ^\
+                        ( (uint32_t) sbox[ ( RK[11]       ) & 0xFF ]       ) ^\
+                        ( (uint32_t) sbox[ ( RK[11] >>  8 ) & 0xFF ] <<  8 ) ^\
+                        ( (uint32_t) sbox[ ( RK[11] >> 16 ) & 0xFF ] << 16 ) ^\
+                        ( (uint32_t) sbox[ ( RK[11] >> 24 ) & 0xFF ] << 24 );\
+                    RK[13] = RK[5] ^ RK[12];\
+                    RK[14] = RK[6] ^ RK[13];\
+                    RK[15] = RK[7] ^ RK[14];\
+                    RK += 8;\
+                }\
+            }\
+            break;\
+        }\
+        default:{\
+            goto err;\
+        }\
+    }\
 } while(0);
 
 /* Encryption primitives */
 /* The 128 bits block encryption */
-#define RIJNDAEL_ENC_ROUND_16(X0, X1, X2, X3, Y0, Y1, Y2, Y3)	  \
-do {							  \
-    (X0) = (*RK) ^ Te0[ ( (Y0)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y1) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y2) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y3) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
-    (X1) = (*RK) ^ Te0[ ( (Y1)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y2) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y3) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y0) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
-    (X2) = (*RK) ^ Te0[ ( (Y2)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y3) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y0) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y1) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
-    (X3) = (*RK) ^ Te0[ ( (Y3)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y0) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y1) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y2) >> 24 ) & 0xFF ]; RK++;	  \
+#define RIJNDAEL_ENC_ROUND_16(X0, X1, X2, X3, Y0, Y1, Y2, Y3)     \
+do {                              \
+    (X0) = (*RK) ^ Te0[ ( (Y0)       ) & 0xFF ] ^     \
+           Te1[ ( (Y1) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y2) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y3) >> 24 ) & 0xFF ]; RK++;    \
+                              \
+    (X1) = (*RK) ^ Te0[ ( (Y1)       ) & 0xFF ] ^     \
+           Te1[ ( (Y2) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y3) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y0) >> 24 ) & 0xFF ]; RK++;    \
+                              \
+    (X2) = (*RK) ^ Te0[ ( (Y2)       ) & 0xFF ] ^     \
+           Te1[ ( (Y3) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y0) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y1) >> 24 ) & 0xFF ]; RK++;    \
+                              \
+    (X3) = (*RK) ^ Te0[ ( (Y3)       ) & 0xFF ] ^     \
+           Te1[ ( (Y0) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y1) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y2) >> 24 ) & 0xFF ]; RK++;    \
 } while(0);
 
 #define RIJNDAEL_ENC_LASTROUND_16(X0, X1, X2, X3, Y0, Y1, Y2, Y3) do {  \
-	X0 = (*RK) ^							\
-	    ( (uint32_t) sbox[ ( Y0	  ) & 0xFF ]	   ) ^		\
-	    ( (uint32_t) sbox[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^		\
-	    ( (uint32_t) sbox[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^		\
-	    ( (uint32_t) sbox[ ( Y3 >> 24 ) & 0xFF ] << 24 ); RK++;	\
-									\
-	X1 = (*RK) ^							\
-	    ( (uint32_t) sbox[ ( Y1       ) & 0xFF ]       ) ^		\
-	    ( (uint32_t) sbox[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^		\
-	    ( (uint32_t) sbox[ ( Y3 >> 16 ) & 0xFF ] << 16 ) ^		\
-	    ( (uint32_t) sbox[ ( Y0 >> 24 ) & 0xFF ] << 24 ); RK++;	\
-									\
-	X2 = (*RK) ^							\
-	   ( (uint32_t) sbox[ ( Y2       ) & 0xFF ]       ) ^		\
-	   ( (uint32_t) sbox[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^		\
-	   ( (uint32_t) sbox[ ( Y0 >> 16 ) & 0xFF ] << 16 ) ^		\
-	   ( (uint32_t) sbox[ ( Y1 >> 24 ) & 0xFF ] << 24 ); RK++; 	\
-									\
-	X3 = (*RK) ^							\
-	   ( (uint32_t) sbox[ ( Y3       ) & 0xFF ]       ) ^		\
-	   ( (uint32_t) sbox[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^		\
-	   ( (uint32_t) sbox[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^		\
-	   ( (uint32_t) sbox[ ( Y2 >> 24 ) & 0xFF ] << 24 ); RK++;	\
+    X0 = (*RK) ^                            \
+        ( (uint32_t) sbox[ ( Y0   ) & 0xFF ]       ) ^      \
+        ( (uint32_t) sbox[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^      \
+        ( (uint32_t) sbox[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^      \
+        ( (uint32_t) sbox[ ( Y3 >> 24 ) & 0xFF ] << 24 ); RK++; \
+                                    \
+    X1 = (*RK) ^                            \
+        ( (uint32_t) sbox[ ( Y1       ) & 0xFF ]       ) ^      \
+        ( (uint32_t) sbox[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^      \
+        ( (uint32_t) sbox[ ( Y3 >> 16 ) & 0xFF ] << 16 ) ^      \
+        ( (uint32_t) sbox[ ( Y0 >> 24 ) & 0xFF ] << 24 ); RK++; \
+                                    \
+    X2 = (*RK) ^                            \
+       ( (uint32_t) sbox[ ( Y2       ) & 0xFF ]       ) ^       \
+       ( (uint32_t) sbox[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^       \
+       ( (uint32_t) sbox[ ( Y0 >> 16 ) & 0xFF ] << 16 ) ^       \
+       ( (uint32_t) sbox[ ( Y1 >> 24 ) & 0xFF ] << 24 ); RK++;  \
+                                    \
+    X3 = (*RK) ^                            \
+       ( (uint32_t) sbox[ ( Y3       ) & 0xFF ]       ) ^       \
+       ( (uint32_t) sbox[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^       \
+       ( (uint32_t) sbox[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^       \
+       ( (uint32_t) sbox[ ( Y2 >> 24 ) & 0xFF ] << 24 ); RK++;  \
 } while(0);
 
 /* The 256 bits encryption */
-#define RIJNDAEL_ENC_ROUND_32(X0, X1, X2, X3, X4, X5, X6, X7, Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7)	  \
-do {							  \
-    (X0) = (*RK) ^ Te0[ ( (Y0)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y1) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y3) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y4) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
-    (X1) = (*RK) ^ Te0[ ( (Y1)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y2) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y4) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y5) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
-    (X2) = (*RK) ^ Te0[ ( (Y2)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y3) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y5) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y6) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
-    (X3) = (*RK) ^ Te0[ ( (Y3)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y4) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y6) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y7) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
-    (X4) = (*RK) ^ Te0[ ( (Y4)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y5) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y7) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y0) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
-    (X5) = (*RK) ^ Te0[ ( (Y5)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y6) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y0) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y1) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
-    (X6) = (*RK) ^ Te0[ ( (Y6)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y7) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y1) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y2) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
-    (X7) = (*RK) ^ Te0[ ( (Y7)	     ) & 0xFF ] ^	  \
-		   Te1[ ( (Y0) >>  8 ) & 0xFF ] ^	  \
-		   Te2[ ( (Y2) >> 16 ) & 0xFF ] ^	  \
-		   Te3[ ( (Y3) >> 24 ) & 0xFF ]; RK++;	  \
-							  \
+#define RIJNDAEL_ENC_ROUND_32(X0, X1, X2, X3, X4, X5, X6, X7, Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7)     \
+do {                              \
+    (X0) = (*RK) ^ Te0[ ( (Y0)       ) & 0xFF ] ^     \
+           Te1[ ( (Y1) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y3) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y4) >> 24 ) & 0xFF ]; RK++;    \
+                              \
+    (X1) = (*RK) ^ Te0[ ( (Y1)       ) & 0xFF ] ^     \
+           Te1[ ( (Y2) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y4) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y5) >> 24 ) & 0xFF ]; RK++;    \
+                              \
+    (X2) = (*RK) ^ Te0[ ( (Y2)       ) & 0xFF ] ^     \
+           Te1[ ( (Y3) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y5) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y6) >> 24 ) & 0xFF ]; RK++;    \
+                              \
+    (X3) = (*RK) ^ Te0[ ( (Y3)       ) & 0xFF ] ^     \
+           Te1[ ( (Y4) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y6) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y7) >> 24 ) & 0xFF ]; RK++;    \
+                              \
+    (X4) = (*RK) ^ Te0[ ( (Y4)       ) & 0xFF ] ^     \
+           Te1[ ( (Y5) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y7) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y0) >> 24 ) & 0xFF ]; RK++;    \
+                              \
+    (X5) = (*RK) ^ Te0[ ( (Y5)       ) & 0xFF ] ^     \
+           Te1[ ( (Y6) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y0) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y1) >> 24 ) & 0xFF ]; RK++;    \
+                              \
+    (X6) = (*RK) ^ Te0[ ( (Y6)       ) & 0xFF ] ^     \
+           Te1[ ( (Y7) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y1) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y2) >> 24 ) & 0xFF ]; RK++;    \
+                              \
+    (X7) = (*RK) ^ Te0[ ( (Y7)       ) & 0xFF ] ^     \
+           Te1[ ( (Y0) >>  8 ) & 0xFF ] ^     \
+           Te2[ ( (Y2) >> 16 ) & 0xFF ] ^     \
+           Te3[ ( (Y3) >> 24 ) & 0xFF ]; RK++;    \
+                              \
 } while( 0 )
 
 #define RIJNDAEL_ENC_LASTROUND_32(X0, X1, X2, X3, X4, X5, X6, X7, Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7) do {  \
-	(X0) = (*RK) ^							\
-	    ( (uint32_t) sbox[ ( (Y0)	  ) & 0xFF ]	   ) ^		\
-	    ( (uint32_t) sbox[ ( (Y1) >>  8 ) & 0xFF ] <<  8 ) ^	\
-	    ( (uint32_t) sbox[ ( (Y3) >> 16 ) & 0xFF ] << 16 ) ^	\
-	    ( (uint32_t) sbox[ ( (Y4) >> 24 ) & 0xFF ] << 24 ); RK++;	\
-									\
-	(X1) = (*RK) ^							\
-	    ( (uint32_t) sbox[ ( (Y1)       ) & 0xFF ]       ) ^	\
-	    ( (uint32_t) sbox[ ( (Y2) >>  8 ) & 0xFF ] <<  8 ) ^	\
-	    ( (uint32_t) sbox[ ( (Y4) >> 16 ) & 0xFF ] << 16 ) ^	\
-	    ( (uint32_t) sbox[ ( (Y5) >> 24 ) & 0xFF ] << 24 ); RK++;	\
-									\
-	(X2) = (*RK) ^							\
-	   ( (uint32_t) sbox[ ( (Y2)       ) & 0xFF ]       ) ^		\
-	   ( (uint32_t) sbox[ ( (Y3) >>  8 ) & 0xFF ] <<  8 ) ^		\
-	   ( (uint32_t) sbox[ ( (Y5) >> 16 ) & 0xFF ] << 16 ) ^		\
-	   ( (uint32_t) sbox[ ( (Y6) >> 24 ) & 0xFF ] << 24 ); RK++; 	\
-									\
-	(X3) = (*RK) ^							\
-	   ( (uint32_t) sbox[ ( (Y3)       ) & 0xFF ]       ) ^		\
-	   ( (uint32_t) sbox[ ( (Y4) >>  8 ) & 0xFF ] <<  8 ) ^		\
-	   ( (uint32_t) sbox[ ( (Y6) >> 16 ) & 0xFF ] << 16 ) ^		\
-	   ( (uint32_t) sbox[ ( (Y7) >> 24 ) & 0xFF ] << 24 ); RK++;	\
-									\
-	(X4) = (*RK) ^							\
-	    ( (uint32_t) sbox[ ( (Y4)	  ) & 0xFF ]	   ) ^		\
-	    ( (uint32_t) sbox[ ( (Y5) >>  8 ) & 0xFF ] <<  8 ) ^	\
-	    ( (uint32_t) sbox[ ( (Y7) >> 16 ) & 0xFF ] << 16 ) ^	\
-	    ( (uint32_t) sbox[ ( (Y0) >> 24 ) & 0xFF ] << 24 ); RK++;	\
-									\
-	(X5) = (*RK) ^							\
-	    ( (uint32_t) sbox[ ( (Y5)       ) & 0xFF ]       ) ^	\
-	    ( (uint32_t) sbox[ ( (Y6) >>  8 ) & 0xFF ] <<  8 ) ^	\
-	    ( (uint32_t) sbox[ ( (Y0) >> 16 ) & 0xFF ] << 16 ) ^	\
-	    ( (uint32_t) sbox[ ( (Y1) >> 24 ) & 0xFF ] << 24 ); RK++;	\
-									\
-	(X6) = (*RK) ^							\
-	   ( (uint32_t) sbox[ ( (Y6)       ) & 0xFF ]       ) ^		\
-	   ( (uint32_t) sbox[ ( (Y7) >>  8 ) & 0xFF ] <<  8 ) ^		\
-	   ( (uint32_t) sbox[ ( (Y1) >> 16 ) & 0xFF ] << 16 ) ^		\
-	   ( (uint32_t) sbox[ ( (Y2) >> 24 ) & 0xFF ] << 24 ); RK++; 	\
-									\
-	(X7) = (*RK) ^							\
-	   ( (uint32_t) sbox[ ( (Y7)       ) & 0xFF ]       ) ^		\
-	   ( (uint32_t) sbox[ ( (Y0) >>  8 ) & 0xFF ] <<  8 ) ^		\
-	   ( (uint32_t) sbox[ ( (Y2) >> 16 ) & 0xFF ] << 16 ) ^		\
-	   ( (uint32_t) sbox[ ( (Y3) >> 24 ) & 0xFF ] << 24 ); RK++;	\
+    (X0) = (*RK) ^                          \
+        ( (uint32_t) sbox[ ( (Y0)     ) & 0xFF ]       ) ^      \
+        ( (uint32_t) sbox[ ( (Y1) >>  8 ) & 0xFF ] <<  8 ) ^    \
+        ( (uint32_t) sbox[ ( (Y3) >> 16 ) & 0xFF ] << 16 ) ^    \
+        ( (uint32_t) sbox[ ( (Y4) >> 24 ) & 0xFF ] << 24 ); RK++;   \
+                                    \
+    (X1) = (*RK) ^                          \
+        ( (uint32_t) sbox[ ( (Y1)       ) & 0xFF ]       ) ^    \
+        ( (uint32_t) sbox[ ( (Y2) >>  8 ) & 0xFF ] <<  8 ) ^    \
+        ( (uint32_t) sbox[ ( (Y4) >> 16 ) & 0xFF ] << 16 ) ^    \
+        ( (uint32_t) sbox[ ( (Y5) >> 24 ) & 0xFF ] << 24 ); RK++;   \
+                                    \
+    (X2) = (*RK) ^                          \
+       ( (uint32_t) sbox[ ( (Y2)       ) & 0xFF ]       ) ^     \
+       ( (uint32_t) sbox[ ( (Y3) >>  8 ) & 0xFF ] <<  8 ) ^     \
+       ( (uint32_t) sbox[ ( (Y5) >> 16 ) & 0xFF ] << 16 ) ^     \
+       ( (uint32_t) sbox[ ( (Y6) >> 24 ) & 0xFF ] << 24 ); RK++;    \
+                                    \
+    (X3) = (*RK) ^                          \
+       ( (uint32_t) sbox[ ( (Y3)       ) & 0xFF ]       ) ^     \
+       ( (uint32_t) sbox[ ( (Y4) >>  8 ) & 0xFF ] <<  8 ) ^     \
+       ( (uint32_t) sbox[ ( (Y6) >> 16 ) & 0xFF ] << 16 ) ^     \
+       ( (uint32_t) sbox[ ( (Y7) >> 24 ) & 0xFF ] << 24 ); RK++;    \
+                                    \
+    (X4) = (*RK) ^                          \
+        ( (uint32_t) sbox[ ( (Y4)     ) & 0xFF ]       ) ^      \
+        ( (uint32_t) sbox[ ( (Y5) >>  8 ) & 0xFF ] <<  8 ) ^    \
+        ( (uint32_t) sbox[ ( (Y7) >> 16 ) & 0xFF ] << 16 ) ^    \
+        ( (uint32_t) sbox[ ( (Y0) >> 24 ) & 0xFF ] << 24 ); RK++;   \
+                                    \
+    (X5) = (*RK) ^                          \
+        ( (uint32_t) sbox[ ( (Y5)       ) & 0xFF ]       ) ^    \
+        ( (uint32_t) sbox[ ( (Y6) >>  8 ) & 0xFF ] <<  8 ) ^    \
+        ( (uint32_t) sbox[ ( (Y0) >> 16 ) & 0xFF ] << 16 ) ^    \
+        ( (uint32_t) sbox[ ( (Y1) >> 24 ) & 0xFF ] << 24 ); RK++;   \
+                                    \
+    (X6) = (*RK) ^                          \
+       ( (uint32_t) sbox[ ( (Y6)       ) & 0xFF ]       ) ^     \
+       ( (uint32_t) sbox[ ( (Y7) >>  8 ) & 0xFF ] <<  8 ) ^     \
+       ( (uint32_t) sbox[ ( (Y1) >> 16 ) & 0xFF ] << 16 ) ^     \
+       ( (uint32_t) sbox[ ( (Y2) >> 24 ) & 0xFF ] << 24 ); RK++;    \
+                                    \
+    (X7) = (*RK) ^                          \
+       ( (uint32_t) sbox[ ( (Y7)       ) & 0xFF ]       ) ^     \
+       ( (uint32_t) sbox[ ( (Y0) >>  8 ) & 0xFF ] <<  8 ) ^     \
+       ( (uint32_t) sbox[ ( (Y2) >> 16 ) & 0xFF ] << 16 ) ^     \
+       ( (uint32_t) sbox[ ( (Y3) >> 24 ) & 0xFF ] << 24 ); RK++;    \
 } while(0);
 
 #define RINJDAEL_ENC(ctx, data_in, data_out) do { \
-	uint32_t i;\
-	/* Our local key and state */\
-	uint32_t *RK, X0, X1, X2, X3, X4, X5, X6, X7, Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7;\
-	if((ctx == NULL) || (data_in == NULL) || (data_out == NULL)){\
-		goto err;\
-	}\
-	/* Sanity check for array access */\
-	if((4 * (ctx->Nb) * (ctx->Nr + 1)) > sizeof(ctx->rk)){\
-		goto err;\
-	}\
-	if((ctx->Nr >> 1) == 0){\
-		goto err;\
-	}\
-	/* Go for AES rounds */\
-	/* Load key and message */\
-	RK = (uint32_t*)ctx->rk;\
-	GET_UINT32_LE(X0, data_in,  0 ); X0 ^= (*RK); RK++;\
-	GET_UINT32_LE(X1, data_in,  4 ); X1 ^= (*RK); RK++;\
-	GET_UINT32_LE(X2, data_in,  8 ); X2 ^= (*RK); RK++;\
-	GET_UINT32_LE(X3, data_in, 12 ); X3 ^= (*RK); RK++;\
-	if(ctx->Nb == 8){\
-		GET_UINT32_LE(X4, data_in, 16 ); X4 ^= (*RK); RK++;\
-		GET_UINT32_LE(X5, data_in, 20 ); X5 ^= (*RK); RK++;\
-		GET_UINT32_LE(X6, data_in, 24 ); X6 ^= (*RK); RK++;\
-		GET_UINT32_LE(X7, data_in, 28 ); X7 ^= (*RK); RK++;\
-	}\
-	else{\
-		/* NOTE: to avoid false positive "use of uninitialized value" in gcc */\
-		X4 = X5 = X6 = X7 = 0;\
-	}\
-	/**/\
-	if(ctx->Nb == 4){\
-		for(i = ((ctx->Nr >> 1) - 1); i > 0; i--){\
-			RIJNDAEL_ENC_ROUND_16(Y0, Y1, Y2, Y3, X0, X1, X2, X3);\
-			RIJNDAEL_ENC_ROUND_16(X0, X1, X2, X3, Y0, Y1, Y2, Y3);\
-		}\
-		RIJNDAEL_ENC_ROUND_16(Y0, Y1, Y2, Y3, X0, X1, X2, X3);\
-		/* Last round without Mixcolumns */\
-		RIJNDAEL_ENC_LASTROUND_16(X0, X1, X2, X3, Y0, Y1, Y2, Y3);\
-	}\
-	else if(ctx->Nb == 8){\
-		for(i = ((ctx->Nr >> 1) - 1); i > 0; i--){\
-			RIJNDAEL_ENC_ROUND_32(Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7, X0, X1, X2, X3, X4, X5, X6, X7);\
-			RIJNDAEL_ENC_ROUND_32(X0, X1, X2, X3, X4, X5, X6, X7, Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7);\
-		}\
-		RIJNDAEL_ENC_ROUND_32(Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7, X0, X1, X2, X3, X4, X5, X6, X7);\
-		/* Last round without Mixcolumns */\
-		RIJNDAEL_ENC_LASTROUND_32(X0, X1, X2, X3, X4, X5, X6, X7, Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7);\
-	}\
-	else{\
-		ret = -1;\
-		goto err;\
-	}\
-	PUT_UINT32_LE(X0, data_out,  0 );\
-	PUT_UINT32_LE(X1, data_out,  4 );\
-	PUT_UINT32_LE(X2, data_out,  8 );\
-	PUT_UINT32_LE(X3, data_out, 12 );\
-	if(ctx->Nb == 8){\
-		PUT_UINT32_LE(X4, data_out, 16 );\
-		PUT_UINT32_LE(X5, data_out, 20 );\
-		PUT_UINT32_LE(X6, data_out, 24 );\
-		PUT_UINT32_LE(X7, data_out, 28 );\
-	}\
-	/* Clean stuff */\
-	memset(&X0, 0, sizeof(X0)); memset(&X1, 0, sizeof(X1));\
-	memset(&X2, 0, sizeof(X2)); memset(&X3, 0, sizeof(X3));\
-	memset(&X4, 0, sizeof(X4)); memset(&X5, 0, sizeof(X5));\
-	memset(&X6, 0, sizeof(X6)); memset(&X7, 0, sizeof(X7));\
-	/* */\
-	memset(&Y0, 0, sizeof(Y0)); memset(&Y1, 0, sizeof(Y1));\
-	memset(&Y2, 0, sizeof(Y2)); memset(&Y3, 0, sizeof(Y3));\
-	memset(&Y4, 0, sizeof(Y4)); memset(&Y5, 0, sizeof(Y5));\
-	memset(&Y6, 0, sizeof(Y6)); memset(&Y7, 0, sizeof(Y7));\
+    uint32_t i;\
+    /* Our local key and state */\
+    uint32_t *RK, X0, X1, X2, X3, X4, X5, X6, X7, Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7;\
+    if((ctx == NULL) || (data_in == NULL) || (data_out == NULL)){\
+        goto err;\
+    }\
+    /* Sanity check for array access */\
+    if((4 * (ctx->Nb) * (ctx->Nr + 1)) > sizeof(ctx->rk)){\
+        goto err;\
+    }\
+    if((ctx->Nr >> 1) == 0){\
+        goto err;\
+    }\
+    /* Go for AES rounds */\
+    /* Load key and message */\
+    RK = (uint32_t*)ctx->rk;\
+    GET_UINT32_LE(X0, data_in,  0 ); X0 ^= (*RK); RK++;\
+    GET_UINT32_LE(X1, data_in,  4 ); X1 ^= (*RK); RK++;\
+    GET_UINT32_LE(X2, data_in,  8 ); X2 ^= (*RK); RK++;\
+    GET_UINT32_LE(X3, data_in, 12 ); X3 ^= (*RK); RK++;\
+    if(ctx->Nb == 8){\
+        GET_UINT32_LE(X4, data_in, 16 ); X4 ^= (*RK); RK++;\
+        GET_UINT32_LE(X5, data_in, 20 ); X5 ^= (*RK); RK++;\
+        GET_UINT32_LE(X6, data_in, 24 ); X6 ^= (*RK); RK++;\
+        GET_UINT32_LE(X7, data_in, 28 ); X7 ^= (*RK); RK++;\
+    }\
+    else{\
+        /* NOTE: to avoid false positive "use of uninitialized value" in gcc */\
+        X4 = X5 = X6 = X7 = 0;\
+    }\
+    /**/\
+    if(ctx->Nb == 4){\
+        for(i = ((ctx->Nr >> 1) - 1); i > 0; i--){\
+            RIJNDAEL_ENC_ROUND_16(Y0, Y1, Y2, Y3, X0, X1, X2, X3);\
+            RIJNDAEL_ENC_ROUND_16(X0, X1, X2, X3, Y0, Y1, Y2, Y3);\
+        }\
+        RIJNDAEL_ENC_ROUND_16(Y0, Y1, Y2, Y3, X0, X1, X2, X3);\
+        /* Last round without Mixcolumns */\
+        RIJNDAEL_ENC_LASTROUND_16(X0, X1, X2, X3, Y0, Y1, Y2, Y3);\
+    }\
+    else if(ctx->Nb == 8){\
+        for(i = ((ctx->Nr >> 1) - 1); i > 0; i--){\
+            RIJNDAEL_ENC_ROUND_32(Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7, X0, X1, X2, X3, X4, X5, X6, X7);\
+            RIJNDAEL_ENC_ROUND_32(X0, X1, X2, X3, X4, X5, X6, X7, Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7);\
+        }\
+        RIJNDAEL_ENC_ROUND_32(Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7, X0, X1, X2, X3, X4, X5, X6, X7);\
+        /* Last round without Mixcolumns */\
+        RIJNDAEL_ENC_LASTROUND_32(X0, X1, X2, X3, X4, X5, X6, X7, Y0, Y1, Y2, Y3, Y4, Y5, Y6, Y7);\
+    }\
+    else{\
+        ret = -1;\
+        goto err;\
+    }\
+    PUT_UINT32_LE(X0, data_out,  0 );\
+    PUT_UINT32_LE(X1, data_out,  4 );\
+    PUT_UINT32_LE(X2, data_out,  8 );\
+    PUT_UINT32_LE(X3, data_out, 12 );\
+    if(ctx->Nb == 8){\
+        PUT_UINT32_LE(X4, data_out, 16 );\
+        PUT_UINT32_LE(X5, data_out, 20 );\
+        PUT_UINT32_LE(X6, data_out, 24 );\
+        PUT_UINT32_LE(X7, data_out, 28 );\
+    }\
+    /* Clean stuff */\
+    memset(&X0, 0, sizeof(X0)); memset(&X1, 0, sizeof(X1));\
+    memset(&X2, 0, sizeof(X2)); memset(&X3, 0, sizeof(X3));\
+    memset(&X4, 0, sizeof(X4)); memset(&X5, 0, sizeof(X5));\
+    memset(&X6, 0, sizeof(X6)); memset(&X7, 0, sizeof(X7));\
+    /* */\
+    memset(&Y0, 0, sizeof(Y0)); memset(&Y1, 0, sizeof(Y1));\
+    memset(&Y2, 0, sizeof(Y2)); memset(&Y3, 0, sizeof(Y3));\
+    memset(&Y4, 0, sizeof(Y4)); memset(&Y5, 0, sizeof(Y5));\
+    memset(&Y6, 0, sizeof(Y6)); memset(&Y7, 0, sizeof(Y7));\
 } while(0);
 
 /* ==== Public APIs ===== */
@@ -680,13 +694,14 @@ do {							  \
 #if defined(RIJNDAEL_OPT_ARMV7M)
 /* When RIJNDAEL_OPT_ARMV7M is defined, we use the assembly optimized t-table based implementation
  * from https://eprint.iacr.org/2016/714.pdf */
+/* Deal with namespacing */
+#define AES_128_keyschedule MQOM_NAMESPACE(AES_128_keyschedule)
 extern void AES_128_keyschedule(const uint8_t *, uint8_t *);
-WEAK int aes128_table_setkey_enc(rijndael_table_ctx_aes128 *ctx, const uint8_t key[16])
-{
+WEAK int aes128_table_setkey_enc(rijndael_table_ctx_aes128 *ctx, const uint8_t key[16]) {
 	int ret = -1;
 	uint8_t *rk;
 
-	if(ctx == NULL){
+	if (ctx == NULL) {
 		goto err;
 	}
 	ctx->rtype = AES128;
@@ -700,8 +715,7 @@ err:
 	return ret;
 }
 #else
-WEAK int aes128_table_setkey_enc(rijndael_table_ctx_aes128 *ctx, const uint8_t key[16])
-{
+WEAK int aes128_table_setkey_enc(rijndael_table_ctx_aes128 *ctx, const uint8_t key[16]) {
 	int ret = -1;
 
 	RIJNDAEL_SETKEY_ENC(ctx, key, AES128);
@@ -712,8 +726,7 @@ err:
 }
 #endif
 
-WEAK int aes256_table_setkey_enc(rijndael_table_ctx_aes256 *ctx, const uint8_t key[32])
-{
+WEAK int aes256_table_setkey_enc(rijndael_table_ctx_aes256 *ctx, const uint8_t key[32]) {
 	int ret = -1;
 
 	RIJNDAEL_SETKEY_ENC(ctx, key, AES256);
@@ -723,8 +736,7 @@ err:
 	return ret;
 }
 
-WEAK int rijndael256_table_setkey_enc(rijndael_table_ctx_rijndael256 *ctx, const uint8_t key[32])
-{
+WEAK int rijndael256_table_setkey_enc(rijndael_table_ctx_rijndael256 *ctx, const uint8_t key[32]) {
 	int ret = -1;
 
 	RIJNDAEL_SETKEY_ENC(ctx, key, RIJNDAEL_256_256);
@@ -736,186 +748,183 @@ err:
 
 #if defined(RIJNDAEL_OPT_ARMV7M)
 /* When RIJNDAEL_OPT_ARMV7M is defined, we use the assmebly optimized t-table based implementation
- * from https://eprint.iacr.org/2016/714.pdf */ 
+ * from https://eprint.iacr.org/2016/714.pdf */
+/* Deal with namespacing */
+#define AES_128_encrypt MQOM_NAMESPACE(AES_128_encrypt)
 extern void AES_128_encrypt(const uint8_t *, const uint8_t *, uint8_t *);
 
-WEAK int aes128_table_enc(const rijndael_table_ctx_aes128 *ctx, const uint8_t data_in[16], uint8_t data_out[16])
-{
+WEAK int aes128_table_enc(const rijndael_table_ctx_aes128 *ctx, const uint8_t data_in[16], uint8_t data_out[16]) {
 	int ret = -1;
 
-	if(ctx->rtype != AES128){
+	if (ctx->rtype != AES128) {
 		goto err;
 	}
 
 	AES_128_encrypt((uint8_t*)(ctx->rk), data_in, data_out);
-	
+
 	ret = 0;
 err:
 	return ret;
 }
 #else
-WEAK int aes128_table_enc(const rijndael_table_ctx_aes128 *ctx, const uint8_t data_in[16], uint8_t data_out[16])
-{
+WEAK int aes128_table_enc(const rijndael_table_ctx_aes128 *ctx, const uint8_t data_in[16], uint8_t data_out[16]) {
 	int ret = -1;
 
-	if(ctx->rtype != AES128){
+	if (ctx->rtype != AES128) {
 		goto err;
 	}
 
 	RINJDAEL_ENC(ctx, data_in, data_out);
-	
+
 	ret = 0;
 err:
 	return ret;
 }
 #endif
 
-WEAK int aes128_table_enc_x2(const rijndael_table_ctx_aes128 *ctx1, const rijndael_table_ctx_aes128 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
-{
-        int ret;
+WEAK int aes128_table_enc_x2(const rijndael_table_ctx_aes128 *ctx1, const rijndael_table_ctx_aes128 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16]) {
+	int ret;
 
-        ret  = aes128_table_enc(ctx1, plainText1, cipherText1);
-        ret |= aes128_table_enc(ctx2, plainText2, cipherText2);
+	ret  = aes128_table_enc(ctx1, plainText1, cipherText1);
+	ret |= aes128_table_enc(ctx2, plainText2, cipherText2);
 
-        return ret;
-}
-
-WEAK int aes128_table_enc_x4(const rijndael_table_ctx_aes128 *ctx1, const rijndael_table_ctx_aes128 *ctx2, const rijndael_table_ctx_aes128 *ctx3, const rijndael_table_ctx_aes128 *ctx4,
-                const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
-                uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16])
-{
-        int ret;
-
-        ret  = aes128_table_enc(ctx1, plainText1, cipherText1);
-        ret |= aes128_table_enc(ctx2, plainText2, cipherText2);
-        ret |= aes128_table_enc(ctx3, plainText3, cipherText3);
-        ret |= aes128_table_enc(ctx4, plainText4, cipherText4);
-
-        return ret;
-}
-
-WEAK int aes128_table_enc_x8(const rijndael_table_ctx_aes128 *ctx1, const rijndael_table_ctx_aes128 *ctx2, const rijndael_table_ctx_aes128 *ctx3, const rijndael_table_ctx_aes128 *ctx4,
-                  const rijndael_table_ctx_aes128 *ctx5, const rijndael_table_ctx_aes128 *ctx6, const rijndael_table_ctx_aes128 *ctx7, const rijndael_table_ctx_aes128 *ctx8,
-                const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
-                const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
-                uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
-                uint8_t cipherText5[16], uint8_t cipherText6[16], uint8_t cipherText7[16], uint8_t cipherText8[16])
-{
-	int ret = 0;
-        ret |= aes128_table_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
-        ret |= aes128_table_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
 	return ret;
 }
 
-WEAK int aes256_table_enc(const rijndael_table_ctx_aes256 *ctx, const uint8_t data_in[16], uint8_t data_out[16])
-{
+WEAK int aes128_table_enc_x4(const rijndael_table_ctx_aes128 *ctx1, const rijndael_table_ctx_aes128 *ctx2, const rijndael_table_ctx_aes128 *ctx3, const rijndael_table_ctx_aes128 *ctx4,
+                             const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
+                             uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16]) {
+	int ret;
+
+	ret  = aes128_table_enc(ctx1, plainText1, cipherText1);
+	ret |= aes128_table_enc(ctx2, plainText2, cipherText2);
+	ret |= aes128_table_enc(ctx3, plainText3, cipherText3);
+	ret |= aes128_table_enc(ctx4, plainText4, cipherText4);
+
+	return ret;
+}
+
+WEAK int aes128_table_enc_x8(const rijndael_table_ctx_aes128 *ctx1, const rijndael_table_ctx_aes128 *ctx2, const rijndael_table_ctx_aes128 *ctx3, const rijndael_table_ctx_aes128 *ctx4,
+                             const rijndael_table_ctx_aes128 *ctx5, const rijndael_table_ctx_aes128 *ctx6, const rijndael_table_ctx_aes128 *ctx7, const rijndael_table_ctx_aes128 *ctx8,
+                             const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
+                             const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
+                             uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
+                             uint8_t cipherText5[16], uint8_t cipherText6[16], uint8_t cipherText7[16], uint8_t cipherText8[16]) {
+	int ret = 0;
+	ret |= aes128_table_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
+	ret |= aes128_table_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
+	return ret;
+}
+
+WEAK int aes256_table_enc(const rijndael_table_ctx_aes256 *ctx, const uint8_t data_in[16], uint8_t data_out[16]) {
 	int ret = -1;
 
-	if(ctx->rtype != AES256){
+	if (ctx->rtype != AES256) {
 		goto err;
 	}
 
 	RINJDAEL_ENC(ctx, data_in, data_out);
-	
+
 	ret = 0;
 err:
 	return ret;
 }
 
-WEAK int aes256_table_enc_x2(const rijndael_table_ctx_aes256 *ctx1, const rijndael_table_ctx_aes256 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16])
-{
-        int ret;
+WEAK int aes256_table_enc_x2(const rijndael_table_ctx_aes256 *ctx1, const rijndael_table_ctx_aes256 *ctx2, const uint8_t plainText1[16], const uint8_t plainText2[16], uint8_t cipherText1[16], uint8_t cipherText2[16]) {
+	int ret;
 
-        ret  = aes256_table_enc(ctx1, plainText1, cipherText1);
-        ret |= aes256_table_enc(ctx2, plainText2, cipherText2);
+	ret  = aes256_table_enc(ctx1, plainText1, cipherText1);
+	ret |= aes256_table_enc(ctx2, plainText2, cipherText2);
 
-        return ret;
-}
-
-WEAK int aes256_table_enc_x4(const rijndael_table_ctx_aes256 *ctx1, const rijndael_table_ctx_aes256 *ctx2, const rijndael_table_ctx_aes256 *ctx3, const rijndael_table_ctx_aes256 *ctx4,
-                const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
-                uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16])
-{
-        int ret;
-
-        ret  = aes256_table_enc(ctx1, plainText1, cipherText1);
-        ret |= aes256_table_enc(ctx2, plainText2, cipherText2);
-        ret |= aes256_table_enc(ctx3, plainText3, cipherText3);
-        ret |= aes256_table_enc(ctx4, plainText4, cipherText4);
-
-        return ret;
-}
-
-WEAK int aes256_table_enc_x8(const rijndael_table_ctx_aes256 *ctx1, const rijndael_table_ctx_aes256 *ctx2, const rijndael_table_ctx_aes256 *ctx3, const rijndael_table_ctx_aes256 *ctx4,
-                  const rijndael_table_ctx_aes256 *ctx5, const rijndael_table_ctx_aes256 *ctx6, const rijndael_table_ctx_aes256 *ctx7, const rijndael_table_ctx_aes256 *ctx8,
-                const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
-                const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
-                uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
-                uint8_t cipherText5[16], uint8_t cipherText6[16], uint8_t cipherText7[16], uint8_t cipherText8[16])
-{
-	int ret = 0;
-        ret |= aes256_table_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
-        ret |= aes256_table_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
 	return ret;
 }
 
-WEAK int rijndael256_table_enc(const rijndael_table_ctx_rijndael256 *ctx, const uint8_t data_in[32], uint8_t data_out[32])
-{
+WEAK int aes256_table_enc_x4(const rijndael_table_ctx_aes256 *ctx1, const rijndael_table_ctx_aes256 *ctx2, const rijndael_table_ctx_aes256 *ctx3, const rijndael_table_ctx_aes256 *ctx4,
+                             const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
+                             uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16]) {
+	int ret;
+
+	ret  = aes256_table_enc(ctx1, plainText1, cipherText1);
+	ret |= aes256_table_enc(ctx2, plainText2, cipherText2);
+	ret |= aes256_table_enc(ctx3, plainText3, cipherText3);
+	ret |= aes256_table_enc(ctx4, plainText4, cipherText4);
+
+	return ret;
+}
+
+WEAK int aes256_table_enc_x8(const rijndael_table_ctx_aes256 *ctx1, const rijndael_table_ctx_aes256 *ctx2, const rijndael_table_ctx_aes256 *ctx3, const rijndael_table_ctx_aes256 *ctx4,
+                             const rijndael_table_ctx_aes256 *ctx5, const rijndael_table_ctx_aes256 *ctx6, const rijndael_table_ctx_aes256 *ctx7, const rijndael_table_ctx_aes256 *ctx8,
+                             const uint8_t plainText1[16], const uint8_t plainText2[16], const uint8_t plainText3[16], const uint8_t plainText4[16],
+                             const uint8_t plainText5[16], const uint8_t plainText6[16], const uint8_t plainText7[16], const uint8_t plainText8[16],
+                             uint8_t cipherText1[16], uint8_t cipherText2[16], uint8_t cipherText3[16], uint8_t cipherText4[16],
+                             uint8_t cipherText5[16], uint8_t cipherText6[16], uint8_t cipherText7[16], uint8_t cipherText8[16]) {
+	int ret = 0;
+	ret |= aes256_table_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
+	ret |= aes256_table_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
+	return ret;
+}
+
+WEAK int rijndael256_table_enc(const rijndael_table_ctx_rijndael256 *ctx, const uint8_t data_in[32], uint8_t data_out[32]) {
 	int ret = -1;
 
-	if(ctx->rtype != RIJNDAEL_256_256){
+	if (ctx->rtype != RIJNDAEL_256_256) {
 		goto err;
 	}
 
 	RINJDAEL_ENC(ctx, data_in, data_out);
-	
+
 	ret = 0;
 err:
 	return ret;
 }
 
 WEAK int rijndael256_table_enc_x2(const rijndael_table_ctx_rijndael256 *ctx1, const rijndael_table_ctx_rijndael256 *ctx2,
-                        const uint8_t plainText1[32], const uint8_t plainText2[32],
-                        uint8_t cipherText1[32], uint8_t cipherText2[32])
-{
-        int ret;
+                                  const uint8_t plainText1[32], const uint8_t plainText2[32],
+                                  uint8_t cipherText1[32], uint8_t cipherText2[32]) {
+	int ret;
 
-        ret  = rijndael256_table_enc(ctx1, plainText1, cipherText1);
-        ret |= rijndael256_table_enc(ctx2, plainText2, cipherText2);
+	ret  = rijndael256_table_enc(ctx1, plainText1, cipherText1);
+	ret |= rijndael256_table_enc(ctx2, plainText2, cipherText2);
 
-        return ret;
+	return ret;
 
 }
 
 
 WEAK int rijndael256_table_enc_x4(const rijndael_table_ctx_rijndael256 *ctx1, const rijndael_table_ctx_rijndael256 *ctx2, const rijndael_table_ctx_rijndael256 *ctx3, const rijndael_table_ctx_rijndael256 *ctx4,
-                const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
-                uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32])
-{
-        int ret;
+                                  const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
+                                  uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32]) {
+	int ret;
 
-        ret  = rijndael256_table_enc(ctx1, plainText1, cipherText1);
-        ret |= rijndael256_table_enc(ctx2, plainText2, cipherText2);
-        ret |= rijndael256_table_enc(ctx3, plainText3, cipherText3);
-        ret |= rijndael256_table_enc(ctx4, plainText4, cipherText4);
+	ret  = rijndael256_table_enc(ctx1, plainText1, cipherText1);
+	ret |= rijndael256_table_enc(ctx2, plainText2, cipherText2);
+	ret |= rijndael256_table_enc(ctx3, plainText3, cipherText3);
+	ret |= rijndael256_table_enc(ctx4, plainText4, cipherText4);
 
-        return ret;
-}
-
-WEAK int rijndael256_table_enc_x8(const rijndael_table_ctx_rijndael256 *ctx1, const rijndael_table_ctx_rijndael256 *ctx2, const rijndael_table_ctx_rijndael256 *ctx3, const rijndael_table_ctx_rijndael256 *ctx4,
-                  const rijndael_table_ctx_rijndael256 *ctx5, const rijndael_table_ctx_rijndael256 *ctx6, const rijndael_table_ctx_rijndael256 *ctx7, const rijndael_table_ctx_rijndael256 *ctx8,
-                const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
-                const uint8_t plainText5[32], const uint8_t plainText6[32], const uint8_t plainText7[32], const uint8_t plainText8[32],
-                uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32],
-                uint8_t cipherText5[32], uint8_t cipherText6[32], uint8_t cipherText7[32], uint8_t cipherText8[32])
-{
-	int ret = 0;
-        ret |= rijndael256_table_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
-        ret |= rijndael256_table_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
 	return ret;
 }
 
-#else /* !RIJNDAEL_TABLE */
+WEAK int rijndael256_table_enc_x8(const rijndael_table_ctx_rijndael256 *ctx1, const rijndael_table_ctx_rijndael256 *ctx2, const rijndael_table_ctx_rijndael256 *ctx3, const rijndael_table_ctx_rijndael256 *ctx4,
+                                  const rijndael_table_ctx_rijndael256 *ctx5, const rijndael_table_ctx_rijndael256 *ctx6, const rijndael_table_ctx_rijndael256 *ctx7, const rijndael_table_ctx_rijndael256 *ctx8,
+                                  const uint8_t plainText1[32], const uint8_t plainText2[32], const uint8_t plainText3[32], const uint8_t plainText4[32],
+                                  const uint8_t plainText5[32], const uint8_t plainText6[32], const uint8_t plainText7[32], const uint8_t plainText8[32],
+                                  uint8_t cipherText1[32], uint8_t cipherText2[32], uint8_t cipherText3[32], uint8_t cipherText4[32],
+                                  uint8_t cipherText5[32], uint8_t cipherText6[32], uint8_t cipherText7[32], uint8_t cipherText8[32]) {
+	int ret = 0;
+	ret |= rijndael256_table_enc_x4(ctx1, ctx2, ctx3, ctx4, plainText1, plainText2, plainText3, plainText4, cipherText1, cipherText2, cipherText3, cipherText4);
+	ret |= rijndael256_table_enc_x4(ctx5, ctx6, ctx7, ctx8, plainText5, plainText6, plainText7, plainText8, cipherText5, cipherText6, cipherText7, cipherText8);
+	return ret;
+}
+
+MAKE_GENERIC_FUNCS_XX_IMPL(aes128, table, 16, 16)
+MAKE_GENERIC_FUNCS_XX_IMPL(aes256, table, 32, 16)
+MAKE_GENERIC_FUNCS_XX_IMPL(rijndael256, table, 32, 32)
+
+#if defined(__GNUC__) && (__GNUC__ >= 11)
+#pragma GCC diagnostic pop
+#endif
+
+#else /* */
 /*
  * Dummy definition to avoid the empty translation unit ISO C warning
  */

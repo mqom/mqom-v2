@@ -1,0 +1,65 @@
+name: mqom2_cat3_gf16_fast_r3
+type: signature
+principal-submitters:
+ - Ryad Benadjila
+ - Charles Bouillaguet
+ - Thibauld Feneuil
+ - Matthieu Rivain
+crypto-assumption: Computing the solution of a Multivariate Quadratic problem.
+website: https://mqom.org/
+spec-version: Round 2
+claimed-nist-level: 3
+claimed-security: EUF-CMA
+length-public-key: 90
+length-secret-key: 132
+length-signature: 8224
+nistkat-sha256: 2f53db529a4345d609cf4fd9e5c9abfdf6f3752c60802dbbf293af0681ba54b5
+implementations-switch-on-runtime-cpu-features: false
+crypto-assumption: Solving a Multivariate Quadratic (MQ) instance.
+common_dep:
+  - aes
+  - sha3
+implementations:
+  - name: default
+    version: 2.1
+    folder_name: .
+    signature_keypair: oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_default_crypto_sign_keypair
+    signature_signature: oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_default_crypto_sign_signature
+    signature_verify: oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_default_crypto_sign_verify
+    compile_opts: -DMQOM2_FOR_LIBOQS -DAPPLY_PUBLIC_API_NAMESPACE=oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_default_ -DAPPLY_NAMESPACE=oqs_sig_private_mqom2_cat3_gf16_fast_r3_default_ -DMQOM2_PARAM_SECURITY=192 -DMQOM2_PARAM_BASE_FIELD=4 -DMQOM2_PARAM_TRADEOFF=0 -DMQOM2_PARAM_NBROUNDS=3 -DUSE_PRG_CACHE -DUSE_PIOP_CACHE -DPIOP_BITSLICE -DUSE_XOF_X4 -DUSE_ENC_X8
+    sources: api.h common.h benchmark.h enc.h enc_local.h enc_mupq.h enc_liboqs.h expand_mq.c expand_mq.h fields.h ggm_tree.c ggm_tree.h keygen.c keygen.h mqom2_parameters.h prg.h prg.c prg_cache.h sign.c sign_memopt.c sign.h crypto_sign.c xof.c xof.h blc/seed_commit.h blc/seed_commit_default.h blc/seed_commit_memopt.h blc/blc_default.c blc/blc_default.h blc/blc_memopt.c blc/blc_memopt.h blc/blc_memopt_common.h blc/blc_memopt_x1.c blc/blc_memopt_x2.c blc/blc_memopt_x4.c blc/blc_common.h blc/blc.h fields/fields_handling.h fields/fields_avx2.h fields/fields_avx512.h fields/fields_common.h fields/fields_ref.h fields/gf256_mult_table.h fields_bitsliced.h fields_bitsliced/fields_bitsliced_branchconst_composite.h fields_bitsliced/fields_bitsliced_branchconst.h piop/piop_cache.h piop/piop_default.c piop/piop_default.h piop/piop_memopt.c piop/piop_memopt.h piop/piop_bitslice.c piop/piop_bitslice.h piop/piop.h rijndael/rijndael_aes_ni.c rijndael/rijndael_aes_ni.h rijndael/rijndael_common.h rijndael/rijndael_ct64_enc.h rijndael/rijndael_ct64.c rijndael/rijndael_ct64.h rijndael/rijndael_platform.h rijndael/rijndael_ref.c rijndael/rijndael_ref.h rijndael/rijndael_table.c rijndael/rijndael_table.h rijndael/rijndael_external.c rijndael/rijndael_external.h rijndael/rijndael.h LICENSE parameters/mqom2_parameters_cat3-gf16-fast-r3.h
+    no-secret-dependent-branching-claimed: true
+    no-secret-dependent-branching-checked-by-valgrind: true
+    large-stack-usage: true
+    supported-platforms: all
+  - name: memopt
+    version: 2.1
+    folder_name: .
+    signature_keypair: oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_memopt_crypto_sign_keypair
+    signature_signature: oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_memopt_crypto_sign_signature
+    signature_verify: oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_memopt_crypto_sign_verify
+    compile_opts: -DMQOM2_FOR_LIBOQS -DAPPLY_PUBLIC_API_NAMESPACE=oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_memopt_ -DAPPLY_NAMESPACE=oqs_sig_private_mqom2_cat3_gf16_fast_r3_memopt_ -DMQOM2_PARAM_SECURITY=192 -DMQOM2_PARAM_BASE_FIELD=4 -DMQOM2_PARAM_TRADEOFF=0 -DMQOM2_PARAM_NBROUNDS=3 -DUSE_PRG_CACHE -DNO_EXPANDMQ_PRG_CACHE -DMEMORY_EFFICIENT_BLC -DPIOP_BITSLICE -DMEMORY_EFFICIENT_KEYGEN -DUSE_XOF_X4
+    sources: api.h common.h benchmark.h enc.h enc_local.h enc_mupq.h enc_liboqs.h expand_mq.c expand_mq.h fields.h ggm_tree.c ggm_tree.h keygen.c keygen.h mqom2_parameters.h prg.h prg.c prg_cache.h sign.c sign_memopt.c sign.h crypto_sign.c xof.c xof.h blc/seed_commit.h blc/seed_commit_default.h blc/seed_commit_memopt.h blc/blc_default.c blc/blc_default.h blc/blc_memopt.c blc/blc_memopt.h blc/blc_memopt_common.h blc/blc_memopt_x1.c blc/blc_memopt_x2.c blc/blc_memopt_x4.c blc/blc_common.h blc/blc.h fields/fields_handling.h fields/fields_avx2.h fields/fields_avx512.h fields/fields_common.h fields/fields_ref.h fields/gf256_mult_table.h fields_bitsliced.h fields_bitsliced/fields_bitsliced_branchconst_composite.h fields_bitsliced/fields_bitsliced_branchconst.h piop/piop_cache.h piop/piop_default.c piop/piop_default.h piop/piop_memopt.c piop/piop_memopt.h piop/piop_bitslice.c piop/piop_bitslice.h piop/piop.h rijndael/rijndael_aes_ni.c rijndael/rijndael_aes_ni.h rijndael/rijndael_common.h rijndael/rijndael_ct64_enc.h rijndael/rijndael_ct64.c rijndael/rijndael_ct64.h rijndael/rijndael_platform.h rijndael/rijndael_ref.c rijndael/rijndael_ref.h rijndael/rijndael_table.c rijndael/rijndael_table.h rijndael/rijndael_external.c rijndael/rijndael_external.h rijndael/rijndael.h LICENSE parameters/mqom2_parameters_cat3-gf16-fast-r3.h
+    no-secret-dependent-branching-claimed: true
+    no-secret-dependent-branching-checked-by-valgrind: true
+    large-stack-usage: false
+    supported-platforms: all
+  - name: avx2
+    version: 2.1
+    folder_name: .
+    signature_keypair: oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_avx2_crypto_sign_keypair
+    signature_signature: oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_avx2_crypto_sign_signature
+    signature_verify: oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_avx2_crypto_sign_verify
+    compile_opts: -DMQOM2_FOR_LIBOQS -DAPPLY_PUBLIC_API_NAMESPACE=oqs_sig_pubapi_mqom2_cat3_gf16_fast_r3_avx2_ -DAPPLY_NAMESPACE=oqs_sig_private_mqom2_cat3_gf16_fast_r3_avx2_ -DMQOM2_PARAM_SECURITY=192 -DMQOM2_PARAM_BASE_FIELD=4 -DMQOM2_PARAM_TRADEOFF=0 -DMQOM2_PARAM_NBROUNDS=3 -DUSE_PRG_CACHE -DUSE_PIOP_CACHE -DUSE_XOF_X4 -DUSE_ENC_X8 -DFIELDS_AVX2
+    sources: api.h common.h benchmark.h enc.h enc_local.h enc_mupq.h enc_liboqs.h expand_mq.c expand_mq.h fields.h ggm_tree.c ggm_tree.h keygen.c keygen.h mqom2_parameters.h prg.h prg.c prg_cache.h sign.c sign_memopt.c sign.h crypto_sign.c xof.c xof.h blc/seed_commit.h blc/seed_commit_default.h blc/seed_commit_memopt.h blc/blc_default.c blc/blc_default.h blc/blc_memopt.c blc/blc_memopt.h blc/blc_memopt_common.h blc/blc_memopt_x1.c blc/blc_memopt_x2.c blc/blc_memopt_x4.c blc/blc_common.h blc/blc.h fields/fields_handling.h fields/fields_avx2.h fields/fields_avx512.h fields/fields_common.h fields/fields_ref.h fields/gf256_mult_table.h fields_bitsliced.h fields_bitsliced/fields_bitsliced_branchconst_composite.h fields_bitsliced/fields_bitsliced_branchconst.h piop/piop_cache.h piop/piop_default.c piop/piop_default.h piop/piop_memopt.c piop/piop_memopt.h piop/piop_bitslice.c piop/piop_bitslice.h piop/piop.h rijndael/rijndael_aes_ni.c rijndael/rijndael_aes_ni.h rijndael/rijndael_common.h rijndael/rijndael_ct64_enc.h rijndael/rijndael_ct64.c rijndael/rijndael_ct64.h rijndael/rijndael_platform.h rijndael/rijndael_ref.c rijndael/rijndael_ref.h rijndael/rijndael_table.c rijndael/rijndael_table.h rijndael/rijndael_external.c rijndael/rijndael_external.h rijndael/rijndael.h LICENSE parameters/mqom2_parameters_cat3-gf16-fast-r3.h
+    no-secret-dependent-branching-claimed: true
+    no-secret-dependent-branching-checked-by-valgrind: true
+    large-stack-usage: true
+    supported_platforms:
+    - architecture: x86_64
+      operating_systems:
+      - Linux
+      - Darwin
+      required_flags:
+      - avx2
+      - aes

@@ -10,7 +10,7 @@
 
 /* Select the best Rijndael implementation depending on the platform if
  * not overloaded by the user */
-#if !defined(RIJNDAEL_CONSTANT_TIME_REF) && !defined(RIJNDAEL_TABLE) && !defined(RIJNDAEL_AES_NI) && !defined(RIJNDAEL_BITSLICE)
+#if !defined(RIJNDAEL_CONSTANT_TIME_REF) && !defined(RIJNDAEL_TABLE) && !defined(RIJNDAEL_AES_NI) && !defined(RIJNDAEL_BITSLICE) && !defined(RIJNDAEL_EXTERNAL)
 /* When AES-NI is present, select the optimized implementation */
 #ifdef __AES__
 #define RIJNDAEL_AES_NI

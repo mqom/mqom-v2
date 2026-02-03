@@ -16,6 +16,24 @@
 # Adaptations for macOS by Stéphane Léon.
 # Adaptations for mingw-w64 (changes macOS too) by Jorrit Jongma.
 
+#ifdef __APPLE__
+#define add_underscore
+#define no_type
+#define no_size
+#define no_plt
+#endif
+
+#ifdef _WIN32
+#define no_hidden
+#define no_type
+#define no_size
+#endif
+
+# Under Unix like, avoid the executable stack warning
+#ifdef __unix__
+.section .note.GNU-stack,""
+#endif
+
 .text
 
 # -----------------------------------------------------------------------------

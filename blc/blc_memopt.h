@@ -14,10 +14,10 @@
 #define BLC_Eval_memopt MQOM_NAMESPACE(BLC_Eval_memopt)
 
 typedef struct blc_key_memopt_t {
-    uint8_t salt[MQOM2_PARAM_SALT_SIZE];
-    uint8_t delta[MQOM2_PARAM_SEED_SIZE];
-    uint8_t rseed[MQOM2_PARAM_TAU][MQOM2_PARAM_SEED_SIZE];
-    uint8_t partial_delta_x[MQOM2_PARAM_TAU][BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N)-MQOM2_PARAM_SEED_SIZE];
+	uint8_t salt[MQOM2_PARAM_SALT_SIZE];
+	uint8_t delta[MQOM2_PARAM_SEED_SIZE];
+	uint8_t rseed[MQOM2_PARAM_TAU][MQOM2_PARAM_SEED_SIZE];
+	uint8_t partial_delta_x[MQOM2_PARAM_TAU][BYTE_SIZE_FIELD_BASE(MQOM2_PARAM_MQ_N) - MQOM2_PARAM_SEED_SIZE];
 } blc_key_memopt_t;
 
 int BLC_Commit_memopt(const uint8_t mseed[MQOM2_PARAM_SEED_SIZE], const uint8_t salt[MQOM2_PARAM_SALT_SIZE], const field_base_elt x[FIELD_BASE_PACKING(MQOM2_PARAM_MQ_N)], uint8_t com1[MQOM2_PARAM_DIGEST_SIZE], blc_key_memopt_t* key, field_ext_elt x0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_MQ_N)], field_ext_elt u0[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)], field_ext_elt u1[MQOM2_PARAM_TAU][FIELD_EXT_PACKING(MQOM2_PARAM_ETA)]);

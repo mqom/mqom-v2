@@ -2,11 +2,31 @@
 // (https://eprint.iacr.org/2016/714.pdf)
 // NOTE: adapted as in https://github.com/mupq/pqm4/blob/master/common/aes-publicinputs.S
 // because of some alignment issues wrt inputs/outputs
+
+// Deal with namespacing
+#ifndef MQOM_NAMESPACE
+#ifdef APPLY_NAMESPACE
+#ifndef concat2
+#define _concat2(a, b) a ## b
+#define concat2(a, b) _concat2(a, b)
+#endif
+#define MQOM_NAMESPACE(s) concat2(APPLY_NAMESPACE, s)
+#else
+#define MQOM_NAMESPACE(s) s
+#endif
+#endif
+#define AES_Te0 MQOM_NAMESPACE(AES_Te0)
+#define AES_Te0_keysched MQOM_NAMESPACE(AES_Te0_keysched)
+#define AES_128_keyschedule MQOM_NAMESPACE(AES_128_keyschedule)
+#define AES_128_encrypt MQOM_NAMESPACE(AES_128_encrypt)
+
 .syntax unified
 .thumb
 
 .align 4
+#if !defined(RIJNDAEL_TABLE_FORCE_IN_FLASH)
 .section .embedded_sram_tables,"a",%progbits
+#endif
 .global AES_Te0
 .type AES_Te0,%object
 AES_Te0:

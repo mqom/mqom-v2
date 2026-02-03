@@ -12,6 +12,28 @@
 * @date     October 2020
 ******************************************************************************/
 
+// Deal with namespacing
+#ifndef MQOM_NAMESPACE
+#ifdef APPLY_NAMESPACE
+#ifndef concat2
+#define _concat2(a, b) a ## b
+#define concat2(a, b) _concat2(a, b)
+#endif
+#define MQOM_NAMESPACE(s) concat2(APPLY_NAMESPACE, s)
+#else
+#define MQOM_NAMESPACE(s) s
+#endif
+#endif
+#define aes128_encrypt_ffs MQOM_NAMESPACE(aes128_encrypt_ffs)
+#define ark_sbox MQOM_NAMESPACE(ark_sbox)
+#define double_shiftrows MQOM_NAMESPACE(double_shiftrows)
+#define mixcolumns_0 MQOM_NAMESPACE(mixcolumns_0)
+#define mixcolumns_1 MQOM_NAMESPACE(mixcolumns_1)
+#define mixcolumns_2 MQOM_NAMESPACE(mixcolumns_2)
+#define mixcolumns_3 MQOM_NAMESPACE(mixcolumns_3)
+#define packing MQOM_NAMESPACE(packing)
+#define unpacking MQOM_NAMESPACE(unpacking)
+
 .syntax unified
 .thumb
 

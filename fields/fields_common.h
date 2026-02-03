@@ -77,7 +77,7 @@ typedef enum {
                 default:{ \
                         break; \
                 } \
-	} \
+    } \
 } while(0)
 
 /* Common macro for hybrid GF(2) matrix and GF(256) vector matrix multiplication */
@@ -103,7 +103,7 @@ typedef enum {
                 default:{ \
                         break; \
                 } \
-	} \
+    } \
 } while(0)
 
 /* Common macro for hybrid GF(256) matrix and GF(2) vector matrix multiplication */
@@ -113,7 +113,7 @@ typedef enum {
 #define GF256_GF2_MAT_MULT(A, X, Y, n, mtype, fun) do { \
         uint32_t i; \
         switch(mtype){ \
-		case TRI_SUP: \
+        case TRI_SUP: \
                 case REG:{ \
                         for(i = 0; i < n; i++){ \
                                 Y[i] = fun(&A[n * i], X, n); \
@@ -129,7 +129,7 @@ typedef enum {
                 default:{ \
                         break; \
                 } \
-	} \
+    } \
 } while(0)
 
 /* Matrix multiplication over GF256to2: this is fundamentally the same as GF256 */

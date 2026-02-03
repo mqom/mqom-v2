@@ -1,4 +1,5 @@
 CC?=gcc
+AR?=ar
 WARNING_FLAGS?=-Wall -Wextra -Wpedantic -Wno-unused-function
 
 CFLAGS?= -O3 $(CFLAGS_PLATFORM) $(WARNING_FLAGS) -std=gnu99 
@@ -90,7 +91,7 @@ endif
 all: $(SOURCES) $(SHA3LIB)
 
 $(SHA3LIB): $(OBJECTS)
-	ar rcs $@ $^
+	$(AR) rcs $@ $^
 
 %.o : %.S
 	$(CC) $(CFLAGS) -c $< -o $@
