@@ -31,6 +31,7 @@ implementations:
     no-secret-dependent-branching-claimed: true
     no-secret-dependent-branching-checked-by-valgrind: true
     large-stack-usage: true
+    memory_optimized: false
     supported-platforms: all
   - name: memopt
     version: 2.1
@@ -43,6 +44,7 @@ implementations:
     no-secret-dependent-branching-claimed: true
     no-secret-dependent-branching-checked-by-valgrind: true
     large-stack-usage: false
+    memory_optimized: true
     supported-platforms: all
   - name: avx2
     version: 2.1
@@ -55,6 +57,7 @@ implementations:
     no-secret-dependent-branching-claimed: true
     no-secret-dependent-branching-checked-by-valgrind: true
     large-stack-usage: true
+    memory_optimized: false
     supported_platforms:
     - architecture: x86_64
       operating_systems:
