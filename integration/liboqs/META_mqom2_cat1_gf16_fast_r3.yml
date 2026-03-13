@@ -28,7 +28,8 @@ implementations:
     signature_verify: oqs_sig_pubapi_mqom2_cat1_gf16_fast_r3_default_crypto_sign_verify
     compile_opts: -DMQOM2_FOR_LIBOQS -DAPPLY_PUBLIC_API_NAMESPACE=oqs_sig_pubapi_mqom2_cat1_gf16_fast_r3_default_ -DAPPLY_NAMESPACE=oqs_sig_private_mqom2_cat1_gf16_fast_r3_default_ -DMQOM2_PARAM_SECURITY=128 -DMQOM2_PARAM_BASE_FIELD=4 -DMQOM2_PARAM_TRADEOFF=0 -DMQOM2_PARAM_NBROUNDS=3 -DNO_EMBEDDED_SRAM_SECTION -DUSE_PRG_CACHE -DUSE_PIOP_CACHE -DPIOP_BITSLICE -DUSE_XOF_X4 -DUSE_ENC_X8
     sources:  parameters/mqom2_parameters_cat1-gf16-fast-r3.h
-    common_dep: common_mqom    no-secret-dependent-branching-claimed: true
+    common_dep: common_mqom
+    no-secret-dependent-branching-claimed: true
     no-secret-dependent-branching-checked-by-valgrind: true
     large-stack-usage: true
     memory_optimized: false
@@ -41,7 +42,8 @@ implementations:
     signature_verify: oqs_sig_pubapi_mqom2_cat1_gf16_fast_r3_memopt_crypto_sign_verify
     compile_opts: -DMQOM2_FOR_LIBOQS -DAPPLY_PUBLIC_API_NAMESPACE=oqs_sig_pubapi_mqom2_cat1_gf16_fast_r3_memopt_ -DAPPLY_NAMESPACE=oqs_sig_private_mqom2_cat1_gf16_fast_r3_memopt_ -DMQOM2_PARAM_SECURITY=128 -DMQOM2_PARAM_BASE_FIELD=4 -DMQOM2_PARAM_TRADEOFF=0 -DMQOM2_PARAM_NBROUNDS=3 -DNO_EMBEDDED_SRAM_SECTION -DUSE_PRG_CACHE -DNO_EXPANDMQ_PRG_CACHE -DMEMORY_EFFICIENT_BLC -DPIOP_BITSLICE -DMEMORY_EFFICIENT_KEYGEN -DUSE_XOF_X4
     sources:  parameters/mqom2_parameters_cat1-gf16-fast-r3.h
-    common_dep: common_mqom    no-secret-dependent-branching-claimed: true
+    common_dep: common_mqom
+    no-secret-dependent-branching-claimed: true
     no-secret-dependent-branching-checked-by-valgrind: true
     large-stack-usage: false
     memory_optimized: true
@@ -54,7 +56,8 @@ implementations:
     signature_verify: oqs_sig_pubapi_mqom2_cat1_gf16_fast_r3_avx2_crypto_sign_verify
     compile_opts: -DMQOM2_FOR_LIBOQS -DAPPLY_PUBLIC_API_NAMESPACE=oqs_sig_pubapi_mqom2_cat1_gf16_fast_r3_avx2_ -DAPPLY_NAMESPACE=oqs_sig_private_mqom2_cat1_gf16_fast_r3_avx2_ -DMQOM2_PARAM_SECURITY=128 -DMQOM2_PARAM_BASE_FIELD=4 -DMQOM2_PARAM_TRADEOFF=0 -DMQOM2_PARAM_NBROUNDS=3 -DNO_EMBEDDED_SRAM_SECTION -DUSE_PRG_CACHE -DUSE_PIOP_CACHE -DUSE_XOF_X4 -DUSE_ENC_X8 -DFIELDS_AVX2
     sources:  parameters/mqom2_parameters_cat1-gf16-fast-r3.h
-    common_dep: common_mqom    no-secret-dependent-branching-claimed: true
+    common_dep: common_mqom
+    no-secret-dependent-branching-claimed: true
     no-secret-dependent-branching-checked-by-valgrind: true
     large-stack-usage: true
     memory_optimized: false
