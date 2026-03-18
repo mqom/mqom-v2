@@ -17,7 +17,6 @@ nistkat-sha256: 4514e356610613d02afd88bec00d39eb9f2352f05464c4b4a01bea015bebe144
 implementations-switch-on-runtime-cpu-features: false
 crypto-assumption: Solving a Multivariate Quadratic (MQ) instance.
 common_dep:
-  - aes
   - sha3
 implementations:
   - name: default
@@ -54,7 +53,7 @@ implementations:
     signature_keypair: oqs_sig_pubapi_mqom2_cat5_gf16_fast_r5_avx2_crypto_sign_keypair
     signature_signature: oqs_sig_pubapi_mqom2_cat5_gf16_fast_r5_avx2_crypto_sign_signature
     signature_verify: oqs_sig_pubapi_mqom2_cat5_gf16_fast_r5_avx2_crypto_sign_verify
-    compile_opts: -DMQOM2_FOR_LIBOQS -DAPPLY_PUBLIC_API_NAMESPACE=oqs_sig_pubapi_mqom2_cat5_gf16_fast_r5_avx2_ -DAPPLY_NAMESPACE=oqs_sig_private_mqom2_cat5_gf16_fast_r5_avx2_ -DMQOM2_PARAM_SECURITY=256 -DMQOM2_PARAM_BASE_FIELD=4 -DMQOM2_PARAM_TRADEOFF=0 -DMQOM2_PARAM_NBROUNDS=5 -DNO_EMBEDDED_SRAM_SECTION -DUSE_PRG_CACHE -DUSE_PIOP_CACHE -DUSE_XOF_X4 -DUSE_ENC_X8 -DFIELDS_AVX2
+    compile_opts: -DMQOM2_FOR_LIBOQS -DAPPLY_PUBLIC_API_NAMESPACE=oqs_sig_pubapi_mqom2_cat5_gf16_fast_r5_avx2_ -DAPPLY_NAMESPACE=oqs_sig_private_mqom2_cat5_gf16_fast_r5_avx2_ -DMQOM2_PARAM_SECURITY=256 -DMQOM2_PARAM_BASE_FIELD=4 -DMQOM2_PARAM_TRADEOFF=0 -DMQOM2_PARAM_NBROUNDS=5 -DNO_EMBEDDED_SRAM_SECTION -DUSE_PRG_CACHE -DUSE_PIOP_CACHE -DUSE_XOF_X4 -DUSE_ENC_X8 -DFIELDS_AVX2 -DRIJNDAEL_AES_NI
     sources:  parameters/mqom2_parameters_cat5-gf16-fast-r5.h
     common_dep: mqom_common
     no-secret-dependent-branching-claimed: true
