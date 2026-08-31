@@ -1,3 +1,9 @@
+# MQOM v2 deprecation and MQOM v3
+
+MQOM v2 is superseded by the NIST round-3 MQOM v3 submission, whose source code can be found here: https://github.com/mqom/mqom-v3
+
+Please refer to this new version of MQOM, and consider the current one obsolete. The current repository is archived and kept as is for historical purposes.
+
 # MQOM v2
 
 The repository contains the implementation of the *MQOM-v2* digital signature scheme proposed by the MQOM team. See the [MQOM website](https://mqom.org/) for details. 
